@@ -32,8 +32,19 @@ npm run preview
 - `src/styles.css`：品牌設計與響應式樣式；Tailwind 由 Vite plugin 載入。
 - `tests/site.spec.ts`：瀏覽器驗收。
 - `netlify.toml`：建置、SPA 路由回退與基本安全標頭。
+- `vercel.json`：Vercel 的 Vite 建置、SPA 路由回退與基本安全標頭。
 
 字體由 npm 的 Noto Sans TC 套件隨站提供，不連線 Google Fonts。首頁 SVG 為原創示意，不是真實服務照片。成果圖形為情境示意，非工具截圖。
+
+## Vercel 部署
+
+1. 登入 [Vercel](https://vercel.com/new)，連接有權限讀取本儲存庫的 GitHub 帳號。
+2. 匯入 `milkpufftw-arch/ccsa-ai-empowerment`，正式分支選擇 `main`，Root Directory 保留專案根目錄。
+3. Framework Preset 選擇 **Vite**。設定已由 `vercel.json` 提供：安裝 `npm ci`、建置 `npm run build`、輸出 `dist`。Node.js 選擇 **24.x**，網站本身不需要環境變數或 API 金鑰。
+4. 點選 **Deploy**，完成後使用 Vercel 實際提供的網址，確認首頁、`/courses/ai-basics` 及 `/showcase/meeting-notes` 可直接開啟與重新整理，並測試成果搜尋及手機選單。
+5. Git 整合完成後，後續推送至 `main` 會依 Vercel 專案設定自動部署。
+
+目前已準備 Vercel 設定並驗證本機建置；尚未取得 Vercel 帳號授權，未宣稱已完成遠端發布。`vercel.json` 的 rewrite 讓 React Router 深層連結可載入，未知路徑會顯示站內 404（HTTP 仍為 200）。Netlify 專用的 `_redirects`、`_headers` 不負責 Vercel 路由，Vercel 使用 `vercel.json`。
 
 ## Netlify 部署
 
@@ -54,14 +65,14 @@ npm run preview
 - 五類資源、分類與可展開操作指引。
 - 404、繁中語言標記、描述與頁面標題、語意結構、鍵盤焦點、跳至內容、選單 ARIA 與結果通知。
 - 本機字體、原創插畫、示範標記與個資提醒。
-- Netlify 設定、單元與瀏覽器測試。
+- Netlify 與 Vercel 設定、單元與瀏覽器測試。
 
 ## 上線前尚待完成
 
 - **正式 CCSA Logo 檔案**：已看到對話圖像，但該圖像未以可讀取檔案掛載至工作區。請將原始 PNG 放入 `public/branding/ccsa-logo.png`，網站即會保留比例顯示；在此之前顯示 CCSA 文字，未重製 Logo。UBS 目前亦為文字名稱識別。
 - 四大子案名稱為依 PRD 工作方向整理的網站用語，需主辦確認正式名稱。
 - 招募、活動日期地點及合作機構均未當作正式公告；請主辦核定後更新資料。
-- 尚未進行真實 Netlify 遠端部署、網域與正式內容核定，也未宣稱通過完整無障礙稽核。
+- 尚未進行真實 Netlify／Vercel 遠端部署、網域與正式內容核定，也未宣稱通過完整無障礙稽核。
 
 ## 第二階段建議
 
