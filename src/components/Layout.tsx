@@ -107,8 +107,9 @@ export default function Layout() {
           </div>
           <div className="footer-bottom">
             <span>© 2026 CCSA 中華育幼機構兒童關懷協會</span>
-            <span>第一階段展示網站・不接受報名或蒐集個資</span>
-            <a href="#main" aria-label="回到頁面頂端">
+            <span>本站報名由Google Forms提供</span>
+            <Link to="/admin">管理入口</Link>
+            <a href="#main" className="back-to-top" aria-label="回到頁面頂端">
               <ArrowUp size={18} />
             </a>
           </div>

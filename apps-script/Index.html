@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <style>
+      :root {
+        font:
+          16px/1.65 system-ui,
+          "Noto Sans TC",
+          sans-serif;
+        color: #293c4b;
+        background: #fffdf9;
+        --blue: #2c78c4;
+        --green: #3cbb6b;
+        --orange: #f4a43a;
+        --red: #f05b67;
+        --line: #e5e9ed;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+      }
+      button,
+      input,
+      select,
+      textarea {
+        font: inherit;
+      }
+      button,
+      a,
+      input,
+      select,
+      textarea {
+        outline-offset: 4px;
+      }
+      button {
+        cursor: pointer;
+        border: 1px solid var(--line);
+        background: white;
+        border-radius: 10px;
+        padding: 9px 15px;
+        color: inherit;
+      }
+      button:hover {
+        border-color: var(--blue);
+      }
+      button:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+      a {
+        color: var(--blue);
+      }
+      .primary {
+        background: var(--blue);
+        color: white;
+        border-color: var(--blue);
+      }
+      .danger {
+        color: #b82f40;
+      }
+      .shell {
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        min-height: 100vh;
+      }
+      aside {
+        padding: 28px 16px;
+        border-right: 1px solid var(--line);
+        background: white;
+      }
+      aside h1 {
+        font-size: 21px;
+        color: var(--blue);
+        margin: 0;
+      }
+      aside p {
+        font-size: 13px;
+        color: #677784;
+      }
+      nav {
+        display: grid;
+        gap: 8px;
+        margin-top: 28px;
+      }
+      nav button {
+        text-align: left;
+        border: 0;
+      }
+      nav button[aria-current="page"] {
+        background: #e9f2fb;
+        color: #1d5a95;
+        font-weight: bold;
+      }
+      main {
+        padding: 32px;
+        min-width: 0;
+        max-width: 1500px;
+        width: 100%;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      h2 {
+        font-size: 27px;
+        margin: 0;
+      }
+      h3 {
+        margin: 0 0 12px;
+      }
+      p {
+        margin: 10px 0;
+      }
+      .muted,
+      small {
+        color: #687784;
+      }
+      .account {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+      .banner {
+        padding: 14px 18px;
+        border: 1px solid #f5d39f;
+        background: #fff5e5;
+        border-radius: 12px;
+        margin-bottom: 20px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 22px;
+        margin-bottom: 18px;
+      }
+      .number {
+        font-size: 36px;
+        color: var(--blue);
+        font-weight: 700;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 18px;
+      }
+      .toolbar input {
+        flex: 1;
+        min-width: 150px;
+      }
+      .table-wrap {
+        overflow: auto;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        text-align: left;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 13px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      th {
+        white-space: nowrap;
+        background: #f4f8fc;
+      }
+      td:first-child {
+        min-width: 170px;
+      }
+      td button {
+        padding: 5px 10px;
+        margin: 2px;
+      }
+      .tag {
+        padding: 3px 9px;
+        border-radius: 20px;
+        display: inline-block;
+        background: #eef2f6;
+        white-space: nowrap;
+        font-size: 13px;
+      }
+      .published {
+        background: #e8f7ed;
+        color: #24663c;
+      }
+      .pending_review {
+        background: #fff0db;
+        color: #805115;
+      }
+      .archived {
+        background: #ffebee;
+        color: #a73343;
+      }
+      input,
+      select,
+      textarea {
+        width: 100%;
+        border: 1px solid #cbd4db;
+        background: white;
+        border-radius: 9px;
+        padding: 10px;
+        color: inherit;
+      }
+      textarea {
+        min-height: 125px;
+        resize: vertical;
+      }
+      label {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 16px;
+      }
+      label small {
+        font-weight: normal;
+      }
+      .form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 20px;
+      }
+      .wide {
+        grid-column: 1/-1;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        justify-content: flex-end;
+        margin-top: 18px;
+      }
+      .id {
+        font-size: 12px;
+        color: #687784;
+        overflow-wrap: anywhere;
+      }
+      dialog {
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        width: min(800px, 94vw);
+        max-height: 90vh;
+        padding: 26px;
+        color: inherit;
+        background: #fffdf9;
+      }
+      dialog::backdrop {
+        background: #10283b99;
+      }
+      .dialog-head {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+      #toast {
+        position: fixed;
+        bottom: 22px;
+        right: 22px;
+        max-width: min(500px, 90vw);
+        background: #244e3a;
+        color: white;
+        border-radius: 12px;
+        padding: 15px 22px;
+        z-index: 10;
+        box-shadow: 0 5px 24px #0002;
+      }
+      #toast.error {
+        background: #963346;
+      }
+      #toast:empty {
+        display: none;
+      }
+      pre {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #f0f4f7;
+        border-radius: 10px;
+        padding: 18px;
+        font-size: 13px;
+        max-height: 55vh;
+        overflow: auto;
+      }
+      #preview-body p {
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+      }
+      #preview-body img {
+        max-width: 160px;
+        max-height: 100px;
+      }
+      #busy {
+        color: #526878;
+        font-size: 14px;
+      }
+      #fatal {
+        padding: 30px;
+      }
+      .empty {
+        padding: 25px;
+        text-align: center;
+        color: #687784;
+      }
+      #editor-error {
+        color: #a1283a;
+        white-space: pre-wrap;
+      }
+      .quick {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      .logline {
+        padding: 10px 0;
+        border-bottom: 1px solid var(--line);
+        overflow-wrap: anywhere;
+      }
+      @media (max-width: 850px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+        aside {
+          padding: 16px;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        aside p {
+          margin: 3px 0;
+        }
+        nav {
+          display: flex;
+          flex-wrap: wrap;
+          margin-top: 12px;
+          gap: 3px;
+        }
+        nav button {
+          font-size: 14px;
+          padding: 8px;
+        }
+        main {
+          padding: 20px 15px;
+        }
+        .cards {
+          grid-template-columns: 1fr;
+        }
+        .card {
+          padding: 18px;
+        }
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .wide {
+          grid-column: auto;
+        }
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        dialog {
+          padding: 18px;
+        }
+        .account {
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell" id="shell" hidden>
+      <aside>
+        <h1>共創未來</h1>
+        <p>CCSA AI培力・管理後台</p>
+        <nav aria-label="管理導覽" id="nav"></nav>
+        <p>
+          公開內容請勿填入兒少個資。<br />儲存後仍須匯出及部署才會更新網站。
+        </p>
+      </aside>
+      <main>
+        <header>
+          <h2 id="page-title" tabindex="-1">後台首頁</h2>
+          <div>
+            <div class="account" id="account"></div>
+            <span id="busy" role="status"></span>
+          </div>
+        </header>
+        <div id="write-notice" class="banner" hidden>
+          目前為唯讀模式。部署與Google帳號安全驗收完成前，無法新增、儲存、下架或匯出檔案；可預覽已發布內容。
+        </div>
+        <div id="view"></div>
+      </main>
+    </div>
+    <div id="fatal" role="alert">正在確認Google帳號與管理權限…</div>
+    <div id="toast" role="status" aria-live="polite"></div>
+    <dialog id="editor">
+      <div class="dialog-head">
+        <h2 id="editor-title">編輯資料</h2>
+        <button type="button" id="editor-close" aria-label="關閉編輯">
+          關閉
+        </button>
+      </div>
+      <form id="record-form">
+        <p id="record-meta" class="id"></p>
+        <div id="fields" class="form-grid"></div>
+        <p id="editor-error" role="alert"></p>
+        <div class="actions">
+          <button type="button" id="record-preview">預覽公開欄位</button
+          ><button type="submit" class="primary" id="save">儲存</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="preview">
+      <div class="dialog-head">
+        <h2>公開內容預覽</h2>
+        <button type="button" id="preview-close">關閉</button>
+      </div>
+      <div id="preview-body"></div>
+    </dialog>
+    <script>
+      "use strict";
+      const $ = (id) => document.getElementById(id);
+      const labels = {
+        draft: "草稿",
+        pending_review: "待審核",
+        published: "已發布",
+        archived: "已下架",
+        not_open: "尚未開放",
+        open: "開放中",
+        closed: "已截止",
+        full: "已額滿",
+        announced: "已公告",
+        create: "新增",
+        update: "編輯",
+        archive: "下架",
+        delete: "刪除",
+        export: "匯出",
+        add_admin: "新增管理員",
+        deactivate_admin: "停用管理員",
+        initialize: "初始化",
+        applied: "完成",
+        pending: "待確認",
+        failed: "失敗",
+      };
+      const sections = [
+        ["Dashboard", "後台首頁"],
+        ["Organizations", "合作機構"],
+        ["Courses", "課程活動"],
+        ["Announcements", "公告"],
+        ["Recruitment", "招募設定"],
+        ["Publish", "公開資料發布"],
+      ];
+      let boot,
+        current = "Dashboard",
+        records = [],
+        editing = null,
+        saving = false,
+        pendingCalls = 0,
+        toastTimer;
+      function el(tag, text, cls) {
+        const n = document.createElement(tag);
+        if (text !== undefined) n.textContent = text;
+        if (cls) n.className = cls;
+        return n;
+      }
+      function localTime(value) {
+        return new Intl.DateTimeFormat("zh-TW", {
+          timeZone: "Asia/Taipei",
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(new Date(value));
+      }
+      function notify(message, error = false) {
+        clearTimeout(toastTimer);
+        $("toast").textContent = message;
+        $("toast").className = error ? "error" : "";
+        toastTimer = setTimeout(() => ($("toast").textContent = ""), 9000);
+      }
+      function rpc(method, ...args) {
+        pendingCalls++;
+        $("busy").textContent = "處理中…";
+        return new Promise((resolve, reject) => {
+          google.script.run
+            .withSuccessHandler((result) => {
+              pendingCalls--;
+              $("busy").textContent = pendingCalls ? "處理中…" : "";
+              if (result && result.ok) resolve(result.data);
+              else
+                reject(new Error(result?.error?.message || "無法完成操作。"));
+            })
+            .withFailureHandler(() => {
+              pendingCalls--;
+              $("busy").textContent = pendingCalls ? "處理中…" : "";
+              reject(
+                new Error("連線失敗。請先重新載入確認儲存狀態，避免重複新增。"),
+              );
+            })
+            [method](...args);
+        });
+      }
+      function action(text, fn, cls) {
+        const b = el("button", text, cls);
+        b.type = "button";
+        b.addEventListener("click", fn);
+        return b;
+      }
+      function status(value) {
+        return el("span", labels[value] || value, "tag " + value);
+      }
+      function canWrite(button) {
+        button.disabled = !boot.writeEnabled;
+        return button;
+      }
+      function renderNavigation() {
+        $("nav").replaceChildren(
+          ...sections.map(([id, label]) => {
+            const b = action(label, () => navigate(id));
+            b.setAttribute("aria-current", id === current ? "page" : "false");
+            return b;
+          }),
+        );
+      }
+      async function navigate(id) {
+        current = id;
+        renderNavigation();
+        $("page-title").textContent = sections.find((x) => x[0] === id)[1];
+        $("view").replaceChildren();
+        try {
+          if (id === "Dashboard") {
+            boot = await rpc("getBootstrap");
+            if (current !== id) return;
+            renderDashboard();
+          } else if (id === "Publish") renderPublish();
+          else {
+            const rows = await rpc("listRecords", id);
+            if (current !== id) return;
+            records = rows;
+            renderList();
+          }
+        } catch (e) {
+          notify(e.message, true);
+        }
+      }
+      function renderDashboard() {
+        const cards = el("div", undefined, "cards");
+        [
+          [
+            "合作機構（實際建檔）",
+            boot.counts.organizations,
+            "已發布 " +
+              boot.counts.publishedOrganizations +
+              " 家；預期目標：" +
+              (boot.targets.organizations === null
+                ? "尚未設定"
+                : boot.targets.organizations + " 家"),
+          ],
+          [
+            "已發布課程（實際）",
+            boot.counts.publishedCourses,
+            "預期目標：" +
+              (boot.targets.courses === null
+                ? "尚未設定"
+                : boot.targets.courses + " 堂"),
+          ],
+          ["網站更新方式", "人工發布", "儲存 → 預覽 → 匯出 → 審核 → 部署"],
+        ].forEach(([title, value, detail]) => {
+          const c = el("section", undefined, "card");
+          c.append(
+            el("h3", title),
+            el("div", String(value), "number"),
+            el("p", detail, "muted"),
+          );
+          cards.append(c);
+        });
+        const quick = el("section", undefined, "card");
+        quick.append(el("h3", "快速新增"));
+        const row = el("div", undefined, "quick");
+        ["Organizations", "Courses", "Announcements"].forEach((t) =>
+          row.append(
+            canWrite(
+              action("＋ " + boot.schemas[t].label, () => openEditor(t)),
+            ),
+          ),
+        );
+        quick.append(row);
+        const news = el("section", undefined, "card");
+        news.append(el("h3", "最新公告"));
+        if (!boot.latestAnnouncements.length)
+          news.append(el("p", "尚無公告。"));
+        boot.latestAnnouncements.forEach((n) => {
+          const line = el("div", undefined, "logline");
+          line.append(status(n.status), el("p", n.title));
+          news.append(line);
+        });
+        const logs = el("section", undefined, "card");
+        logs.append(el("h3", "最近修改紀錄"));
+        if (!boot.recentChanges.length) logs.append(el("p", "尚無操作紀錄。"));
+        boot.recentChanges.forEach((l) => {
+          logs.append(
+            el(
+              "div",
+              localTime(l.updatedAt) +
+                "｜" +
+                l.actor +
+                "｜" +
+                (labels[l.action] || l.action) +
+                " " +
+                (boot.schemas[l.entity]?.label ||
+                  {
+                    System: "系統設定",
+                    AdminUsers: "管理員白名單",
+                    PublicSnapshot: "公開資料",
+                  }[l.entity] ||
+                  "管理資料") +
+                "｜" +
+                (labels[l.outcome] || l.outcome) +
+                "（臺灣時間）",
+              "logline",
+            ),
+          );
+        });
+        $("view").replaceChildren(cards, quick, news, logs);
+      }
+      function renderList() {
+        const tableName = current,
+          schema = boot.schemas[tableName];
+        const card = el("section", undefined, "card"),
+          tools = el("div", undefined, "toolbar");
+        const search = el("input");
+        search.placeholder = "搜尋名稱、縣市或分類";
+        search.setAttribute("aria-label", "搜尋資料");
+        const filter = el("select");
+        filter.setAttribute("aria-label", "發布狀態篩選");
+        ["", "draft", "pending_review", "published", "archived"].forEach(
+          (v) => {
+            const o = el("option", v ? labels[v] : "所有狀態");
+            o.value = v;
+            filter.append(o);
+          },
+        );
+        tools.append(search, filter);
+        if (tableName !== "Recruitment" || records.length === 0)
+          tools.append(
+            canWrite(
+              action(
+                "＋ 新增" + schema.label,
+                () => openEditor(tableName),
+                "primary",
+              ),
+            ),
+          );
+        card.append(tools);
+        const wrap = el("div", undefined, "table-wrap");
+        card.append(wrap);
+        function draw() {
+          const filtered = records.filter(
+            (r) =>
+              (!filter.value || r.status === filter.value) &&
+              [r.name, r.title, r.city, r.category, r.description]
+                .join(" ")
+                .toLowerCase()
+                .includes(search.value.trim().toLowerCase()),
+          );
+          const table = el("table"),
+            head = el("thead"),
+            tr = el("tr");
+          ["名稱／說明", "狀態", "最後修改（臺灣時間）", "操作"].forEach((s) =>
+            tr.append(el("th", s)),
+          );
+          head.append(tr);
+          table.append(head);
+          const body = el("tbody");
+          filtered.forEach((r) => {
+            const line = el("tr"),
+              title = el("td");
+            title.append(
+              el("strong", r.name || r.title || "機構招募設定"),
+              el("div", r.id, "id"),
+            );
+            const s = el("td");
+            s.append(status(r.status));
+            const ops = el("td");
+            ops.append(
+              action("編輯", () => openEditor(tableName, r)),
+              action("預覽", () => previewRecord(tableName, r)),
+              canWrite(
+                action(
+                  "下架",
+                  () => changeState("archiveRecord", tableName, r),
+                  "danger",
+                ),
+              ),
+              canWrite(
+                action(
+                  "刪除",
+                  () => changeState("deleteRecord", tableName, r),
+                  "danger",
+                ),
+              ),
+            );
+            line.append(title, s, el("td", localTime(r.updatedAt)), ops);
+            body.append(line);
+          });
+          table.append(body);
+          wrap.replaceChildren(table);
+          if (!filtered.length)
+            wrap.append(el("p", "目前沒有符合條件的資料。", "empty"));
+        }
+        search.addEventListener("input", draw);
+        filter.addEventListener("change", draw);
+        draw();
+        $("view").replaceChildren(card);
+      }
+      function openEditor(table, record) {
+        editing = { table, record: record || null };
+        $("editor-title").textContent =
+          (record ? "編輯" : "新增") + boot.schemas[table].label;
+        $("record-meta").textContent = record
+          ? "ID：" + record.id + "｜版本 " + record.version
+          : "儲存後會自動產生唯一ID。";
+        $("editor-error").textContent = "";
+        $("fields").replaceChildren();
+        const fields = [
+          ...boot.schemas[table].fields,
+          [
+            "status",
+            "發布狀態",
+            "select",
+            true,
+            [
+              "draft",
+              ...(["Organizations", "Courses"].includes(table)
+                ? ["pending_review"]
+                : []),
+              "published",
+              "archived",
+            ],
+          ],
+        ];
+        fields.forEach(([key, title, type, required, limit]) => {
+          const label = el(
+            "label",
+            title + (required ? " ＊" : ""),
+            type === "textarea" ? "wide" : "",
+          );
+          let input;
+          if (type === "select") {
+            input = el("select");
+            limit.forEach((v) => {
+              const o = el("option", labels[v] || v);
+              o.value = v;
+              input.append(o);
+            });
+          } else {
+            input = el(type === "textarea" ? "textarea" : "input");
+            if (type !== "textarea")
+              input.type =
+                type === "date"
+                  ? "date"
+                  : ["url", "form", "image"].includes(type)
+                    ? "url"
+                    : "text";
+            if (typeof limit === "number") input.maxLength = limit;
+          }
+          input.name = key;
+          input.id = "field-" + key;
+          input.required = required;
+          input.disabled = !boot.writeEnabled;
+          input.value =
+            record?.[key] ??
+            (key === "status"
+              ? "draft"
+              : key === "formUrl"
+                ? "https://docs.google.com/forms/d/e/1FAIpQLSdYOmU6G3BHpwnS_FqiO1yjfdEisC5e-3EqhL0QzycA9FwDiQ/viewform"
+                : type === "select"
+                  ? limit[0]
+                  : "");
+          label.append(input);
+          if (key === "logoUrl")
+            label.append(
+              el(
+                "small",
+                "使用已確認可公開的網站PNG、JPG或WebP網址。檔案先由維護人員放入網站；此階段不開放檔案上傳。",
+              ),
+            );
+          if (key === "internalNotes")
+            label.append(
+              el("small", "僅供內部作業；不填兒少個資或敏感審查內容。"),
+            );
+          $("fields").append(label);
+        });
+        $("save").disabled = !boot.writeEnabled;
+        $("editor").showModal();
+      }
+      function formData() {
+        const data = {};
+        $("fields")
+          .querySelectorAll("[name]")
+          .forEach((i) => (data[i.name] = i.value));
+        if (editing.record) {
+          data.id = editing.record.id;
+          data.version = editing.record.version;
+        }
+        return data;
+      }
+      $("record-form").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (saving || !boot.writeEnabled) return;
+        if (
+          formData().status === "archived" &&
+          editing.record?.status !== "archived" &&
+          !confirm("確定下架？重新匯出並部署後才會從網站移除。")
+        )
+          return;
+        saving = true;
+        $("save").disabled = true;
+        $("editor-error").textContent = "";
+        try {
+          await rpc("saveRecord", editing.table, formData());
+          $("editor").close();
+          notify("儲存成功。完成公開資料匯出及部署後，網站才會更新。");
+          await navigate(current);
+        } catch (e) {
+          $("editor-error").textContent = e.message;
+        } finally {
+          saving = false;
+          $("save").disabled = !boot.writeEnabled;
+        }
+      });
+      $("editor-close").onclick = () => {
+        if (!saving) $("editor").close();
+      };
+      $("editor").addEventListener("cancel", (e) => {
+        if (saving) e.preventDefault();
+      });
+      $("preview-close").onclick = () => $("preview").close();
+      $("record-preview").onclick = () =>
+        previewRecord(editing.table, formData());
+      function previewRecord(table, record) {
+        const body = $("preview-body");
+        body.replaceChildren(
+          el(
+            "p",
+            "此為公開欄位內容預覽。草稿或下架資料不會匯出；發布前仍須人工確認內容可公開。",
+            "banner",
+          ),
+        );
+        boot.schemas[table].fields
+          .filter((f) => f[0] !== "internalNotes")
+          .forEach(([key, label, type]) => {
+            body.append(el("h3", label));
+            if (type === "image" && /^https:\/\//.test(record[key] || "")) {
+              const img = el("img");
+              img.src = record[key];
+              img.alt = "機構Logo預覽";
+              img.referrerPolicy = "no-referrer";
+              body.append(img);
+            }
+            body.append(el("p", labels[record[key]] || record[key] || "—"));
+          });
+        $("preview").showModal();
+      }
+      async function changeState(method, table, record) {
+        const deleting = method === "deleteRecord";
+        if (
+          !confirm(
+            (deleting
+              ? "確定刪除？刪除後無法復原。"
+              : "確定下架？下次匯出並部署後才會從網站移除。") +
+              "\n" +
+              (record.name || record.title || "招募設定"),
+          )
+        )
+          return;
+        try {
+          await rpc(method, table, record.id, record.version);
+          notify(
+            deleting
+              ? "資料已刪除。"
+              : "資料已下架，請記得重新匯出並部署網站。",
+          );
+          await navigate(current);
+        } catch (e) {
+          notify(e.message, true);
+        }
+      }
+      function renderPublish() {
+        const card = el("section", undefined, "card");
+        card.append(
+          el("h3", "確認內容，再更新網站"),
+          el(
+            "p",
+            "只會匯出已發布的機構、課程、公告及招募設定。管理員帳號、操作紀錄與內部備註不會匯出。",
+          ),
+          el(
+            "p",
+            "1. 預覽內容並檢查個資與公開授權。\n2. 下載content.json，存至受限的Google Drive交接資料夾。\n3. 維護人員匯入專案，檢查差異並在Netlify預覽驗收。\n4. 審核通過後部署。",
+          ),
+        );
+        const controls = el("div", undefined, "toolbar");
+        controls.append(
+          action("預覽已發布JSON", async () => {
+            try {
+              const data = await rpc("previewPublic");
+              $("preview-body").replaceChildren(
+                el("pre", JSON.stringify(data, null, 2)),
+              );
+              $("preview").showModal();
+            } catch (e) {
+              notify(e.message, true);
+            }
+          }),
+        );
+        controls.append(
+          canWrite(
+            action(
+              "下載公開JSON",
+              async () => {
+                try {
+                  const data = await rpc("exportPublic");
+                  const url = URL.createObjectURL(
+                    new Blob([data.json], {
+                      type: "application/json;charset=utf-8",
+                    }),
+                  );
+                  const a = el("a");
+                  a.href = url;
+                  a.download = data.filename;
+                  document.body.append(a);
+                  a.click();
+                  a.remove();
+                  setTimeout(() => URL.revokeObjectURL(url), 1000);
+                  notify("公開JSON已下載，尚未更新網站。");
+                } catch (e) {
+                  notify(e.message, true);
+                }
+              },
+              "primary",
+            ),
+          ),
+        );
+        card.append(controls);
+        $("view").replaceChildren(card);
+      }
+      (async () => {
+        try {
+          boot = await rpc("getBootstrap");
+          $("fatal").hidden = true;
+          $("shell").hidden = false;
+          $("account").textContent = "目前帳號：" + boot.email;
+          $("write-notice").hidden = boot.writeEnabled;
+          renderNavigation();
+          renderDashboard();
+        } catch (e) {
+          $("fatal").textContent = e.message;
+        }
+      })();
+    </script>
+  </body>
+</html>

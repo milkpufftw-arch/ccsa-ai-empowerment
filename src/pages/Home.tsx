@@ -16,8 +16,16 @@ import {
   CourseCard,
   ShowcaseCard,
 } from "../components/UI";
-import { courses, showcases } from "../data/content";
+import { showcases } from "../data/content";
+import {
+  useContent,
+  siteCourses,
+  isDemoMode,
+  ContentStatus,
+} from "../data/repository";
 export default function Home() {
+  const { data } = useContent();
+  const courses = siteCourses(data);
   return (
     <>
       <section className="hero">
@@ -117,14 +125,18 @@ export default function Home() {
             link="查看所有課程"
             to="/courses"
           />
+          <ContentStatus />
+          {!isDemoMode && !courses.length && <p>正式課程資訊將陸續公告。</p>}
           <div className="grid two">
             {courses.slice(0, 2).map((c) => (
               <CourseCard key={c.id} item={c} />
             ))}
           </div>
-          <p className="section-note">
-            以下為課程規劃示範，日期與地點非正式公告，目前不開放報名。
-          </p>
+          {isDemoMode && (
+            <p className="section-note">
+              以下為課程規劃示範，日期與地點非正式公告，目前不開放報名。
+            </p>
+          )}
         </div>
       </section>
       <section className="section container">
@@ -178,18 +190,19 @@ export default function Home() {
       </section>
       <section className="section container">
         <SectionTitle eyebrow="LATEST UPDATES" title="計畫新鮮事" />
-        <Link to="/seed" className="news-row">
-          <span>計畫資訊</span>
-          <time>2026.11</time>
-          <h3>AI種子機構：一起探索合作與共學的可能</h3>
-          <ArrowUpRight />
-        </Link>
-        <Link to="/resources" className="news-row">
-          <span>學習資源</span>
-          <time>示範內容</time>
-          <h3>開始使用AI之前，先認識個資保護與資訊查證</h3>
-          <ArrowUpRight />
-        </Link>
+        {!data?.announcements.length && <p>最新公告將陸續更新。</p>}
+        {data?.announcements
+          .slice()
+          .sort((a, b) => b.date.localeCompare(a.date))
+          .slice(0, 5)
+          .map((n) => (
+            <Link to={`/announcements/${n.id}`} className="news-row" key={n.id}>
+              <span>{n.category}</span>
+              <time>{n.date}</time>
+              <h3>{n.title}</h3>
+              <ArrowUpRight />
+            </Link>
+          ))}
       </section>
       <section className="join-banner">
         <div className="container">
