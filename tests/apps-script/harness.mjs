@@ -221,12 +221,19 @@ export function harness() {
       }),
     );
   }
+  function enableOwner() {
+    props.setProperty("WRITE_ENABLED", "true");
+    props.setProperty("ADMIN_WRITE_MODE", "owner_only");
+    props.setProperty("DEPLOYMENT_EXECUTE_AS", "USER_ACCESSING");
+    props.setProperty("DEPLOYMENT_ACCESS", "ANYONE");
+  }
   return {
     state,
     book,
     context,
     properties,
     enable,
+    enableOwner,
     call: (method, ...args) =>
       JSON.parse(JSON.stringify(context[method](...args))),
   };

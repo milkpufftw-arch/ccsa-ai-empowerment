@@ -19,7 +19,7 @@ function getBootstrap() {
     });
     return {
       email: ctx.email,
-      writeEnabled: writesEnabled_(),
+      writeEnabled: writesEnabled_(ctx),
       schemas: publicSchemas_(),
       counts: {
         organizations: data.Organizations.length,
@@ -55,7 +55,7 @@ function saveRecord(table, input) {
   return rpc_(function (ctx) {
     return locked_(function () {
       ctx = authorize_();
-      requireWrites_();
+      requireWrites_(ctx);
       contentTable_(table);
       const values = validateFields_(table, input);
       const rows = readRows_(ctx.book, table);
@@ -125,7 +125,7 @@ function archiveRecord(table, id, version) {
   return rpc_(function (ctx) {
     return locked_(function () {
       ctx = authorize_();
-      requireWrites_();
+      requireWrites_(ctx);
       contentTable_(table);
       const found = findRecord_(ctx.book, table, id);
       assert_(
@@ -150,7 +150,7 @@ function deleteRecord(table, id, version) {
   return rpc_(function (ctx) {
     return locked_(function () {
       ctx = authorize_();
-      requireWrites_();
+      requireWrites_(ctx);
       contentTable_(table);
       const found = findRecord_(ctx.book, table, id);
       assert_(
@@ -190,7 +190,7 @@ function exportPublic() {
   return rpc_(function (ctx) {
     return locked_(function () {
       ctx = authorize_();
-      requireWrites_();
+      requireWrites_(ctx);
       const snapshot = buildPublic_(ctx.book);
       return mutate_(ctx, "export", "PublicSnapshot", "snapshot", function () {
         return {
@@ -265,10 +265,29 @@ function authorize_() {
   );
   return { email: email, book: book };
 }
-function writesEnabled_() {
+function writesEnabled_(ctx) {
   const p = PropertiesService.getScriptProperties();
   if (p.getProperty("WRITE_ENABLED") !== "true") return false;
   try {
+    const mode = p.getProperty("ADMIN_WRITE_MODE") || "reviewed_admins";
+    if (mode === "owner_only") {
+      // These properties attest the settings checked by the owner in Google's deployment UI.
+      if (
+        p.getProperty("DEPLOYMENT_EXECUTE_AS") !== "USER_ACCESSING" ||
+        p.getProperty("DEPLOYMENT_ACCESS") !== "ANYONE"
+      )
+        return false;
+      // The fallback keeps a one-function update compatible with previously deployed callers.
+      const current = ctx || authorize_();
+      const owner = current.book.getOwner();
+      const ownerEmail = owner
+        ? String(owner.getEmail() || "")
+            .trim()
+            .toLowerCase()
+        : "";
+      return !!ownerEmail && ownerEmail === current.email;
+    }
+    if (mode !== "reviewed_admins") return false;
     const review = JSON.parse(p.getProperty("SECURITY_REVIEW_JSON") || "{}");
     return (
       review.executeAs === "USER_ACCESSING" &&
@@ -285,11 +304,11 @@ function writesEnabled_() {
     return false;
   }
 }
-function requireWrites_() {
+function requireWrites_(ctx) {
   assert_(
-    writesEnabled_(),
+    writesEnabled_(ctx),
     "WRITES_DISABLED",
-    "正式寫入尚未啟用。請先完成Google帳號及部署安全驗收。",
+    "此帳號的寫入功能尚未啟用。請確認寫入模式、Google部署設定及帳號權限。",
   );
 }
 function locked_(fn) {

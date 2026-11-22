@@ -368,3 +368,111 @@ test("重新初始化會關閉寫入並清除過期驗收", () => {
   assert.equal(h.properties.has("SECURITY_REVIEW_JSON"), false);
   assertError(h.call("saveRecord", "Organizations", org()), "WRITES_DISABLED");
 });
+
+test("單一擁有者可新增、發布、匯出、下架及刪除，不需偽造多人驗收紀錄", () => {
+  const h = harness();
+  h.enableOwner();
+  assert.equal(h.properties.has("SECURITY_REVIEW_JSON"), false);
+  assert.equal(h.call("getBootstrap").data.writeEnabled, true);
+  const first = h.call("saveRecord", "Organizations", org()).data;
+  const published = h.call("saveRecord", "Organizations", {
+    ...org({ status: "published", name: "公開測試機構" }),
+    id: first.id,
+    version: first.version,
+  }).data;
+  assert.equal(published.id, first.id);
+  const exported = h.call("exportPublic");
+  assert.equal(exported.ok, true);
+  const snapshot = validatePublicSnapshot(JSON.parse(exported.data.json));
+  assert.equal(snapshot.organizations[0].name, "公開測試機構");
+  assert.ok(!exported.data.json.includes("internalNotes"));
+  const archived = h.call(
+    "archiveRecord",
+    "Organizations",
+    first.id,
+    published.version,
+  ).data;
+  assert.equal(
+    h.call("deleteRecord", "Organizations", first.id, archived.version).ok,
+    true,
+  );
+  assert.equal(h.call("listRecords", "Organizations").data.length, 0);
+});
+
+test("單一擁有者模式中，白名單內的其他編輯者仍不能寫入或匯出", () => {
+  const h = harness();
+  h.enable(); // Even a previously completed multi-admin review cannot override owner-only mode.
+  h.enableOwner();
+  const first = h.call("saveRecord", "Organizations", org()).data;
+  h.properties.set("NEW_ADMIN_EMAIL", "second@example.test");
+  h.context.addAdmin_();
+  h.state.email = h.state.effective = "second@example.test";
+  assert.equal(h.call("getBootstrap").data.writeEnabled, false);
+  assert.equal(h.call("listRecords", "Organizations").ok, true);
+  const writesBefore = h.state.writes;
+  for (const args of [
+    ["saveRecord", "Organizations", org()],
+    ["archiveRecord", "Organizations", first.id, first.version],
+    ["deleteRecord", "Organizations", first.id, first.version],
+    ["exportPublic"],
+  ])
+    assertError(h.call(...args), "WRITES_DISABLED");
+  assert.equal(h.state.writes, writesBefore);
+});
+
+test("擁有者模式遇到缺少部署確認、無效模式或無法確認擁有者時拒絕寫入", () => {
+  for (const change of [
+    (h) => h.properties.delete("DEPLOYMENT_EXECUTE_AS"),
+    (h) => h.properties.set("DEPLOYMENT_EXECUTE_AS", "USER_DEPLOYING"),
+    (h) => h.properties.set("DEPLOYMENT_ACCESS", "ANYONE_ANONYMOUS"),
+    (h) => h.properties.set("ADMIN_WRITE_MODE", "unknown"),
+    (h) => {
+      h.book.getOwner = () => null;
+    },
+    (h) => {
+      h.book.getOwner = () => {
+        throw new Error("private platform failure");
+      };
+    },
+    (h) => {
+      h.book.getOwner = () => ({ getEmail: () => "" });
+    },
+  ]) {
+    const h = harness();
+    h.enableOwner();
+    change(h);
+    assert.equal(h.call("getBootstrap").data.writeEnabled, false);
+    assertError(
+      h.call("saveRecord", "Organizations", org()),
+      "WRITES_DISABLED",
+    );
+  }
+});
+
+test("只更新寫入判斷函式的舊版呼叫者亦受完整授權及停寫開關保護", () => {
+  const h = harness();
+  h.enableOwner();
+  assert.equal(h.context.writesEnabled_(), true);
+  h.properties.set("WRITE_ENABLED", "false");
+  assert.equal(h.context.writesEnabled_(), false);
+  h.properties.set("WRITE_ENABLED", "true");
+  for (const change of [
+    () => {
+      h.state.canEdit = false;
+    },
+    () => {
+      h.state.canEdit = true;
+      h.state.email = h.state.effective = "unlisted@example.test";
+    },
+    () => {
+      h.state.email = "";
+    },
+    () => {
+      h.state.email = "admin@example.test";
+      h.state.effective = "wrong@example.test";
+    },
+  ]) {
+    change();
+    assert.equal(h.context.writesEnabled_(), false);
+  }
+});
