@@ -22,7 +22,6 @@ import {
 import {
   categories,
   showcases,
-  courses,
   resources,
   resourceCategories,
   filterShowcases,
@@ -127,7 +126,15 @@ export function About() {
     </>
   );
 }
+import {
+  useContent,
+  siteCourses,
+  isDemoMode,
+  ContentStatus,
+} from "../data/repository";
+import { RecruitmentPanel } from "./ManagedContent";
 export function Seed() {
+  const { data } = useContent();
   return (
     <>
       <PageIntro
@@ -136,8 +143,9 @@ export function Seed() {
         description="從機構的日常需求出發，透過共學、實踐與交流，陪伴團隊找到適合自己的AI應用方式。"
       />
       <div className="container section">
+        <ContentStatus />
         <Notice>
-          第一階段為計畫展示。招募資格、名額、申請時程與配合事項尚待正式公告，本頁不受理申請或蒐集資料。
+          招募時程及合作條件以已發布公告為準；申請請使用計畫既有的Google Forms。
         </Notice>
         <div className="editorial section">
           <div>
@@ -185,9 +193,7 @@ export function Seed() {
         <div className="grid two">
           <div className="plain-card">
             <h2>如何申請？</h2>
-            <p>
-              正式招募資訊尚未公告。目前不開放申請，亦未設定報名表單。後續請留意本網站計畫資訊。
-            </p>
+            <RecruitmentPanel recruitment={data?.recruitment ?? null} />
             <Link className="text-link" to="/about">
               先了解完整計畫
               <ArrowRight size={18} />
@@ -204,13 +210,47 @@ export function Seed() {
             </Link>
           </div>
         </div>
+        <section className="section">
+          <SectionTitle eyebrow="OUR PARTNERS" title="合作機構" />
+          {!data?.organizations.length && (
+            <p>正式合作名單確認並取得公開授權後，將於此處介紹。</p>
+          )}
+          <div className="grid three">
+            {data?.organizations.map((o) => (
+              <article className="plain-card" key={o.id}>
+                {o.logoUrl && (
+                  <img
+                    className="organization-logo"
+                    src={o.logoUrl}
+                    alt={`${o.name} Logo`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span className="tag">
+                  {o.city}・{o.region}
+                </span>
+                <h3>
+                  <Link to={`/organizations/${o.id}`}>{o.name}</Link>
+                </h3>
+                <p>{o.summary}</p>
+                <Link className="text-link" to={`/organizations/${o.id}`}>
+                  認識機構
+                  <ArrowRight size={18} />
+                </Link>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </>
   );
 }
 export function Courses() {
+  const { data } = useContent();
+  const courses = siteCourses(data);
   const [type, setType] = useState("全部課程");
-  const types = ["全部課程", "專業人員", "青少年"];
+  const types = ["全部課程", "專業人員", "青少年", "其他"];
   const filtered = courses.filter(
     (c) => type === "全部課程" || c.type.startsWith(type),
   );
@@ -222,8 +262,11 @@ export function Courses() {
         description="專業工作者與青少年的AI學習旅程，從認識工具到動手實踐。"
       />
       <div className="container section">
+        <ContentStatus />
         <Notice>
-          以下均為示範活動，日期、地點、對象與課程內容不代表正式公告。第一階段不接受報名。
+          {isDemoMode
+            ? "以下均為示範活動，日期、地點、對象與課程內容不代表正式公告。第一階段不接受報名。"
+            : "以下為已發布課程；開放報名時，請透過課程頁的Google Forms連結申請。"}
         </Notice>
         <div className="filter-tabs" aria-label="課程對象篩選">
           {types.map((t) => (
@@ -238,7 +281,7 @@ export function Courses() {
           ))}
         </div>
         <p className="results-count" aria-live="polite">
-          共 {filtered.length} 堂示範課程
+          共 {filtered.length} 堂{isDemoMode ? "示範課程" : "課程"}
         </p>
         <div className="grid two course-list">
           {filtered.map((c) => (
@@ -251,7 +294,15 @@ export function Courses() {
 }
 export function CourseDetail() {
   const { id } = useParams();
-  const c = courses.find((x) => x.id === id);
+  const { data, loading, error } = useContent();
+  const c = siteCourses(data).find((x) => x.id === id);
+  if (!isDemoMode && (loading || error))
+    return (
+      <div className="container section">
+        <h1>課程資訊</h1>
+        <ContentStatus />
+      </div>
+    );
   if (!c) return <NotFound />;
   return (
     <>
@@ -266,7 +317,11 @@ export function CourseDetail() {
             <ArrowLeft size={17} />
             返回課程列表
           </Link>
-          <Notice>示範活動・目前不開放報名，日期地點非正式公告。</Notice>
+          <Notice>
+            {c.isDemo
+              ? "示範活動・目前不開放報名，日期地點非正式公告。"
+              : "正式課程資訊，報名狀態請見右側活動資訊。"}
+          </Notice>
           <h2>一起學些什麼？</h2>
           <p>{c.description}</p>
           <h2>課程內容</h2>
@@ -281,7 +336,7 @@ export function CourseDetail() {
           </p>
         </article>
         <aside className="detail-aside">
-          <span className="tag">示範活動</span>
+          <span className="tag">{c.isDemo ? "示範活動" : c.type}</span>
           <h3>活動資訊</h3>
           <p>
             <CalendarDays size={19} />
@@ -297,7 +352,24 @@ export function CourseDetail() {
             <Users size={19} />
             {c.audience}
           </p>
-          <div className="closed-registration">尚未開放報名</div>
+          {!c.isDemo && c.registrationStatus === "open" && c.registrationUrl ? (
+            <a
+              className="btn primary"
+              href={c.registrationUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              前往Google Forms報名
+            </a>
+          ) : (
+            <div className="closed-registration">
+              {c.registrationStatus === "closed"
+                ? "報名已截止"
+                : c.registrationStatus === "full"
+                  ? "已額滿"
+                  : "尚未開放報名"}
+            </div>
+          )}
           <small>本網站不蒐集報名個資。</small>
         </aside>
       </div>

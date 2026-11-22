@@ -7,8 +7,11 @@
     "dev": "vite --host 0.0.0.0",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "vitest run src",
-    "test:e2e": "playwright test"
+    "test": "vitest run src && npm run test:backend",
+    "test:e2e": "playwright test",
+    "test:backend": "node --test tests/apps-script/*.test.mjs",
+    "content:import": "node scripts/import-public.mjs",
+    "build:demo": "VITE_CONTENT_MODE=demo vite build --outDir dist-demo"
   },
   "dependencies": {
     "@fontsource/noto-sans-tc": "^5.2.8",

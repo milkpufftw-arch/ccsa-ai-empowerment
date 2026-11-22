@@ -8,3 +8,6 @@ test-results/
 
 *.tsbuildinfo
 .vercel/
+dist-demo/
+.clasp.json
+*.credentials.json

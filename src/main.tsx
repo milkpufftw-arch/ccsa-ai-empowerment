@@ -6,6 +6,12 @@ import "@fontsource/noto-sans-tc/500.css";
 import "@fontsource/noto-sans-tc/700.css";
 import "./styles.css";
 import Layout from "./components/Layout";
+import { ContentProvider } from "./data/repository";
+import {
+  OrganizationDetail,
+  AnnouncementDetail,
+  AdminEntry,
+} from "./pages/ManagedContent";
 import Home from "./pages/Home";
 import {
   About,
@@ -19,20 +25,25 @@ import {
 } from "./pages/Content";
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Home />} />
-          <Route path="about" element={<About />} />
-          <Route path="seed" element={<Seed />} />
-          <Route path="courses" element={<Courses />} />
-          <Route path="courses/:id" element={<CourseDetail />} />
-          <Route path="showcase" element={<Showcase />} />
-          <Route path="showcase/:id" element={<ShowcaseDetail />} />
-          <Route path="resources" element={<Resources />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ContentProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Home />} />
+            <Route path="about" element={<About />} />
+            <Route path="seed" element={<Seed />} />
+            <Route path="organizations/:id" element={<OrganizationDetail />} />
+            <Route path="announcements/:id" element={<AnnouncementDetail />} />
+            <Route path="admin" element={<AdminEntry />} />
+            <Route path="courses" element={<Courses />} />
+            <Route path="courses/:id" element={<CourseDetail />} />
+            <Route path="showcase" element={<Showcase />} />
+            <Route path="showcase/:id" element={<ShowcaseDetail />} />
+            <Route path="resources" element={<Resources />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ContentProvider>
   </React.StrictMode>,
 );

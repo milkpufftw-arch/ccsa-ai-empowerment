@@ -3,6 +3,11 @@
   publish = "dist"
 [build.environment]
   NODE_VERSION = "24"
+  VITE_CONTENT_MODE = "published"
+[[headers]]
+  for = "/data/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
 [[redirects]]
   from = "/*"
   to = "/index.html"

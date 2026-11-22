@@ -10,7 +10,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { projects, type Showcase, type Course } from "../data/content";
+import { projects, type Showcase } from "../data/content";
 export function SectionTitle({
   eyebrow,
   title,
@@ -142,7 +142,7 @@ export function ShowcaseCard({
     </article>
   );
 }
-export function CourseCard({ item }: { item: Course }) {
+export function CourseCard({ item }: { item: import("../data/repository").SiteCourse }) {
   const d = new Date(item.date + "T00:00:00");
   return (
     <article className="course-card">
@@ -159,7 +159,7 @@ export function CourseCard({ item }: { item: Course }) {
       <div className="course-content">
         <div className="tag-row">
           <span className="tag">{item.type}</span>
-          <span className="demo-label">示範活動</span>
+          {item.isDemo && <span className="demo-label">示範活動</span>}
         </div>
         <h3>
           <Link to={`/courses/${item.id}`}>{item.title}</Link>
