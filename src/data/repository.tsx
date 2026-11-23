@@ -20,7 +20,9 @@ export class JsonContentRepository implements ContentRepository {
     const response = await fetch(this.path, {
       signal,
       cache: "no-cache",
-      credentials: "omit",
+      // Vercel-protected previews require this site's login cookie for static JSON too.
+      // Same-origin credentials are never sent to a different site's data source.
+      credentials: "same-origin",
     });
     if (!response.ok) throw new Error("公開資料暫時無法載入");
     return validatePublicSnapshot(await response.json());
