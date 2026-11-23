@@ -24,7 +24,7 @@ import {
   ContentStatus,
 } from "../data/repository";
 export default function Home() {
-  const { data } = useContent();
+  const { data, loading, error } = useContent();
   const courses = siteCourses(data);
   return (
     <>
@@ -188,9 +188,13 @@ export default function Home() {
           </div>
         </div>
       </section>
-      <section className="section container">
+      <section className="section container" aria-label="計畫新鮮事">
         <SectionTitle eyebrow="LATEST UPDATES" title="計畫新鮮事" />
-        {!data?.announcements.length && <p>最新公告將陸續更新。</p>}
+        {loading && <p>公告載入中…</p>}
+        {error && <p>公告暫時無法載入，請稍後重新整理。</p>}
+        {!loading && !error && !data?.announcements.length && (
+          <p>最新公告將陸續更新。</p>
+        )}
         {data?.announcements
           .slice()
           .sort((a, b) => b.date.localeCompare(a.date))

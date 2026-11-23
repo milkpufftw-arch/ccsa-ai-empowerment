@@ -112,6 +112,52 @@ test("含額外敏感欄位的JSON被讀取層拒絕", async ({ page }) => {
   await expect(page.getByRole("alert")).toHaveText(/暫時無法載入/);
   await expect(page.getByText("公開合作機構", { exact: true })).toHaveCount(0);
 });
+test("有登入保護的預覽版仍能以同站登入狀態讀取公告", async ({
+  page,
+  context,
+}) => {
+  const { data, n } = snapshot();
+  await context.addCookies([
+    {
+      name: "ccsa_preview_access",
+      value: "test_access",
+      url: "http://127.0.0.1:4173",
+      httpOnly: true,
+    },
+  ]);
+  await page.route("**/data/content.json", async (route) => {
+    const headers = await route.request().allHeaders();
+    if ((headers.cookie || "").includes("ccsa_preview_access=test_access")) {
+      await route.fulfill({ json: data });
+    } else {
+      await route.fulfill({
+        status: 401,
+        contentType: "text/html; charset=utf-8",
+        body: "請先登入預覽網站",
+      });
+    }
+  });
+  await page.goto("/");
+  await expect(page.locator(`a[href="/announcements/${n.id}"]`)).toBeVisible();
+});
+
+test("首頁公告讀取失敗時顯示錯誤，不顯示尚無公告的提示", async ({ page }) => {
+  await page.route("**/data/content.json", (route) =>
+    route.fulfill({
+      status: 401,
+      contentType: "text/html; charset=utf-8",
+      body: "請先登入預覽網站",
+    }),
+  );
+  await page.goto("/");
+  const news = page.getByRole("region", { name: "計畫新鮮事", exact: true });
+  await expect(
+    news.getByText("公告暫時無法載入，請稍後重新整理。", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    news.getByText("最新公告將陸續更新。", { exact: true }),
+  ).toHaveCount(0);
+});
 test("桌機與手機的頁尾管理入口連至指定後台，且保留前台分頁", async ({
   page,
   context,
