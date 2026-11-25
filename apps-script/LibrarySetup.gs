@@ -30,7 +30,9 @@ function migrateLibrary_() {
         const ids = new Set(readRows_(ctx.book, table).map(function (row) { return row.id; }));
         LIBRARY_SEED_[table].forEach(function (seed) {
           if (ids.has(seed.id)) return;
-          const input = Object.assign({}, seed, { status: "published" });
+          // Seed content comes from the demo site. Make it editable without publishing it.
+          const status = table === "LibraryCategories" ? "published" : "draft";
+          const input = Object.assign({}, seed, { status: status });
           const values = validateFields_(table, input);
           writeRow_(sheet, table, sheet.getLastRow() + 1, Object.assign(values, {
             id: seed.id, createdAt: now, updatedAt: now, version: 1,

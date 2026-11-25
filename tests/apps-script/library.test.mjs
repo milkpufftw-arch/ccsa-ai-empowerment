@@ -20,10 +20,16 @@ test("備份與權限、移轉重跑、保留既有成果網址及前台資源�
   h.migrateLibrary();
   h.migrateLibrary();
   const data = validateLibrarySnapshot(ok(h.call("previewLibrary")));
-  assert.equal(data.showcases.length, showcases.length);
-  assert.equal(data.resources.length, resources.length);
+  assert.equal(data.showcases.length, 0);
+  assert.equal(data.resources.length, 0);
+  const savedShowcases = ok(h.call("listRecords", "Showcases"));
+  const savedResources = ok(h.call("listRecords", "LearningResources"));
+  assert.equal(savedShowcases.length, showcases.length);
+  assert.equal(savedResources.length, resources.length);
+  assert.ok([...savedShowcases, ...savedResources].every((row) =>
+    row.status === "draft" && row.sample === "sample"));
   for (const item of showcases) {
-    const migrated = data.showcases.find((row) => row.id === item.id);
+    const migrated = savedShowcases.find((row) => row.id === item.id);
     for (const key of ["title", "organization", "summary", "context", "problem", "prompt", "benefit", "limitations", "publishedAt"])
       assert.equal(migrated[key], item[key], key);
     assert.deepEqual(splitLines(migrated.steps), item.steps);
@@ -31,7 +37,7 @@ test("備份與權限、移轉重跑、保留既有成果網址及前台資源�
     assert.equal(data.categories.find((row) => row.id === migrated.categoryId).name, item.category);
   }
   for (const item of resources) {
-    const migrated = data.resources.find((row) => row.id === item.id);
+    const migrated = savedResources.find((row) => row.id === item.id);
     assert.equal(migrated.title, item.title);
     assert.equal(migrated.body, item.body);
     assert.deepEqual(splitLines(migrated.steps), item.steps);
@@ -40,7 +46,8 @@ test("備份與權限、移轉重跑、保留既有成果網址及前台資源�
   const archived = ok(h.call("archiveRecord", "Showcases", "meeting-notes", 1));
   ok(h.call("deleteRecord", "Showcases", archived.id, archived.version));
   h.migrateLibrary();
-  assert.equal(ok(h.call("previewLibrary")).showcases.length, 5);
+  assert.equal(ok(h.call("listRecords", "Showcases")).length, 5);
+  assert.equal(ok(h.call("previewLibrary")).showcases.length, 0);
   assert.equal(ok(h.call("listRecords", "Recruitment")).length, 1);
 });
 
@@ -98,11 +105,17 @@ test("擁有者重跑同步安裝只建立一份私有快照及一個觸發條�
     { type: "user", role: "owner" },
     { type: "user", role: "reader", emailAddress: "reader@staging-test.iam.gserviceaccount.com" },
   ]);
-  assert.equal(validateLibrarySnapshot(JSON.parse(file.blob.json)).showcases.length, 6);
-  ok(h.call("archiveRecord", "Showcases", "meeting-notes", 1));
+  assert.equal(validateLibrarySnapshot(JSON.parse(file.blob.json)).showcases.length, 0);
+  const draft = ok(h.call("getRecord", "Showcases", "meeting-notes"));
+  const published = ok(h.call("saveRecord", "Showcases", { ...fields(draft), status: "published" }));
+  h.context.refreshLibrary_();
+  const publicShowcases = validateLibrarySnapshot(JSON.parse(file.blob.json)).showcases;
+  assert.deepEqual(publicShowcases.map((row) => row.id), [draft.id]);
+  assert.equal(publicShowcases[0].sample, "sample");
+  ok(h.call("archiveRecord", "Showcases", published.id, published.version));
   h.state.email = "";
   h.context.refreshLibrary_();
-  assert.equal(validateLibrarySnapshot(JSON.parse(file.blob.json)).showcases.length, 5);
+  assert.equal(validateLibrarySnapshot(JSON.parse(file.blob.json)).showcases.length, 0);
   h.state.effective = "wrong@example.test";
   h.properties.set("LIBRARY_DIRTY", "true");
   assert.throws(() => h.context.refreshLibrary_(), /擁有者/);

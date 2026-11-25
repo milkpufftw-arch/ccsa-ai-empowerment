@@ -203,15 +203,17 @@ test("擁有者新增公告、下載公開資料後，前台首頁與詳細頁�
 });
 
 test("成果與資源從後台同步前台，保留原內容並隔離草稿、下架與無法讀取的狀態", async ({ page, context }) => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
   const h = await loadAdmin(page, true, true, true);
+  h.properties.set("LIBRARY_SNAPSHOT_READER", "reader@staging-test.iam.gserviceaccount.com");
+  const { LIBRARY_PUBLIC_FILE_ID } = h.context.installLibraryPublisher_();
+  const file = h.state.files.get(LIBRARY_PUBLIC_FILE_ID);
   const publicPage = await context.newPage();
   await publicPage.clock.install();
   let unavailable = false;
   await publicPage.route("**/api/library", (route) => {
     if (unavailable) return route.fulfill({ status: 503 });
-    const result = h.call("previewLibrary");
-    return route.fulfill({ status: 200, json: result.data });
+    return route.fulfill({ contentType: "application/json", body: file.blob.json });
   });
   async function nav(name: string) {
     await page.getByRole("navigation").getByRole("button", { name, exact: true }).click();
@@ -221,11 +223,15 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
     await expect(page.locator("#editor")).not.toBeVisible();
   }
   function form(key: string) { return page.locator("#field-" + key); }
-  async function synchronize() { await publicPage.clock.fastForward(60_100); }
+  async function synchronize() {
+    h.context.refreshLibrary_();
+    await publicPage.clock.fastForward(60_100);
+  }
   const row = (title: string) => page.getByRole("row").filter({ hasText: title });
   const publicApp = () => publicPage.locator(".showcase-card").filter({ hasText: "公開成果測試" });
   await publicPage.goto("/showcase");
-  await expect(publicPage.locator(".showcase-card")).toHaveCount(6);
+  await expect(publicPage.getByText("還沒找到符合的成果")).toBeVisible();
+  await expect(publicPage.locator(".showcase-card")).toHaveCount(0);
 
   await nav("成果與資源分類管理");
   await page.getByRole("button", { name: "＋ 新增分類" }).click();
@@ -235,6 +241,7 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
   await save();
   const categoryId = h.call("listRecords", "LibraryCategories").data.find((r) => r.name === "新增實務分類").id;
   await nav("AI 應用成果庫管理");
+  await expect(row("把會議整理時間，留給更重要的陪伴")).toContainText("草稿");
   await page.getByRole("button", { name: "＋ 新增AI 應用成果" }).click();
   await form("title").fill("公開成果測試");
   await form("categoryId").selectOption(categoryId);
@@ -329,6 +336,7 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
   await expect(row("公開成果測試")).toBeVisible();
 
   await nav("AI 學習資源管理");
+  await expect(row("第一次使用AI：提問與查證入門")).toContainText("草稿");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "＋ 新增AI 學習資源" }).click();
   await form("title").fill("新學習資源");
@@ -340,9 +348,10 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
   await form("status").selectOption("published");
   await form("featured").selectOption("featured");
   await save();
+  await synchronize();
   await publicPage.setViewportSize({ width: 390, height: 844 });
   await publicPage.goto("/resources");
-  await expect(publicPage.locator(".resource-card")).toHaveCount(6);
+  await expect(publicPage.locator(".resource-card")).toHaveCount(1);
   await expect(publicPage.locator(".resource-card").first()).toContainText("新學習資源");
   await publicPage.getByLabel("資源類型").selectOption("AI 工具");
   await expect(publicPage.locator(".resource-card")).toHaveCount(1);
@@ -356,6 +365,13 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
   await expect(publicPage.getByText("新版學習摘要")).toBeVisible();
   expect(await publicPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await row("新學習資源").getByRole("button", { name: "下架", exact: true }).click();
+  await expect(row("新學習資源")).toContainText("已下架");
+  await synchronize();
+  await expect(publicPage.getByText("還沒找到符合的資源")).toBeVisible();
+  await expect(publicPage.locator(".resource-card")).toHaveCount(0);
 
   unavailable = true;
   await synchronize();

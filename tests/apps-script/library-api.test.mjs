@@ -51,10 +51,11 @@ test("Vercel API 只讀取固定 Drive 檔，拒絕寫入、過期或含私有�
   const first = await call();
   assert.equal(first.statusCode, 200);
   assert.equal(first.headers.get("Cache-Control"), "no-store");
-  assert.equal(first.body.showcases.length, 6);
+  assert.equal(first.body.showcases.length, 0);
+  assert.equal(first.body.resources.length, 0);
   payload = { ...snapshot, generatedAt: "2000-01-01T00:00:00Z" };
   assert.equal((await call()).statusCode, 503);
-  payload = { ...snapshot, resources: [{ ...snapshot.resources[0], internalNotes: "private" }] };
+  payload = { ...snapshot, categories: [{ ...snapshot.categories[0], internalNotes: "private" }, ...snapshot.categories.slice(1)] };
   const rejected = await call();
   assert.equal(rejected.statusCode, 503);
   assert.ok(!JSON.stringify(rejected.body).includes("private"));
