@@ -12,6 +12,8 @@ export function harness() {
     failAudit: false,
     failAuditFinalize: false,
     sheets: new Map(),
+    files: new Map(),
+    triggers: [],
     reads: [],
     writes: 0,
   };
@@ -95,6 +97,10 @@ export function harness() {
     getLastColumn() {
       return Math.max(0, ...this.rows.map((r) => r.length));
     }
+    getMaxColumns() {
+      return 26;
+    }
+    insertColumnsAfter() {}
     getMaxRows() {
       return Math.max(1000, this.rows.length);
     }
@@ -131,6 +137,9 @@ export function harness() {
       state.sheets.set(name, s);
       return s;
     },
+    getId() {
+      return "private-sheet-id";
+    },
     getOwner() {
       return { getEmail: () => "admin@example.test" };
     },
@@ -149,7 +158,11 @@ export function harness() {
       return this;
     },
   };
+  function assertInterval(interval) {
+    if (interval !== 1) throw new Error("Expected a one-minute trigger");
+  }
   const context = vm.createContext({
+    console: { log() {} },
     Date,
     JSON,
     Number,
@@ -169,7 +182,28 @@ export function harness() {
         get() {
           return { capabilities: { canEdit: state.canEdit } };
         },
+        create(metadata, blob) {
+          const id = randomUUID();
+          state.files.set(id, { metadata, blob, permissions: [{ type: "user", role: "owner" }] });
+          return { id };
+        },
+        update(_metadata, id, blob) {
+          state.files.get(id).blob = blob;
+          return { id };
+        },
       },
+      Permissions: {
+        list(id) { return { permissions: state.files.get(id).permissions }; },
+        create(permission, id) { state.files.get(id).permissions.push(permission); },
+      },
+    },
+    ScriptApp: {
+      getProjectTriggers: () => state.triggers,
+      newTrigger: (name) => ({
+        timeBased() { return this; },
+        everyMinutes(interval) { assertInterval(interval); return this; },
+        create() { state.triggers.push({ getHandlerFunction: () => name }); },
+      }),
     },
     SpreadsheetApp: {
       openById: () => book,
@@ -190,13 +224,17 @@ export function harness() {
     LockService: {
       getScriptLock: () => ({ tryLock: () => !state.locked, releaseLock() {} }),
     },
-    Utilities: { getUuid: randomUUID },
+    Utilities: {
+      getUuid: randomUUID,
+      base64Decode: (data) => [...Buffer.from(data, "base64")],
+      newBlob: (json) => ({ getBytes: () => Buffer.from(json), json }),
+    },
     HtmlService: {
       createHtmlOutput: () => html,
       createHtmlOutputFromFile: () => html,
     },
   });
-  for (const file of ["Schema.gs", "Server.gs", "Setup.gs"])
+  for (const file of ["Schema.gs", "Library.gs", "LibrarySeed.gs", "LibrarySetup.gs", "Server.gs", "Setup.gs"])
     vm.runInContext(
       readFileSync(
         new URL("../../apps-script/" + file, import.meta.url),
@@ -206,6 +244,10 @@ export function harness() {
       { filename: file },
     );
   context.initialize_();
+  function migrateLibrary() {
+    properties.set("LIBRARY_BACKUP_CONFIRMED", book.getId());
+    return context.migrateLibrary_();
+  }
   function enable() {
     props.setProperty("WRITE_ENABLED", "true");
     props.setProperty(
@@ -234,6 +276,7 @@ export function harness() {
     properties,
     enable,
     enableOwner,
+    migrateLibrary,
     call: (method, ...args) =>
       JSON.parse(JSON.stringify(context[method](...args))),
   };

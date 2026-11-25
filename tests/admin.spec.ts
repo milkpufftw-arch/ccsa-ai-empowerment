@@ -2,8 +2,9 @@ import { test, expect, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { harness } from "./apps-script/harness.mjs";
 import { validatePublicSnapshot } from "../src/data/public-contract.mjs";
-async function loadAdmin(page: Page, enabled = true, ownerOnly = false) {
+async function loadAdmin(page: Page, enabled = true, ownerOnly = false, library = false) {
   const h = harness();
+  if (library) h.migrateLibrary();
   if (enabled) {
     if (ownerOnly) h.enableOwner();
     else h.enable();
@@ -199,4 +200,181 @@ test("擁有者新增公告、下載公開資料後，前台首頁與詳細頁�
     }),
   ).toBeVisible();
   await frontend.close();
+});
+
+test("成果與資源從後台同步前台，保留原內容並隔離草稿、下架與無法讀取的狀態", async ({ page, context }) => {
+  test.setTimeout(120_000);
+  const h = await loadAdmin(page, true, true, true);
+  h.properties.set("LIBRARY_SNAPSHOT_READER", "reader@staging-test.iam.gserviceaccount.com");
+  const { LIBRARY_PUBLIC_FILE_ID } = h.context.installLibraryPublisher_();
+  const file = h.state.files.get(LIBRARY_PUBLIC_FILE_ID);
+  const publicPage = await context.newPage();
+  await publicPage.clock.install();
+  let unavailable = false;
+  await publicPage.route("**/api/library", (route) => {
+    if (unavailable) return route.fulfill({ status: 503 });
+    return route.fulfill({ contentType: "application/json", body: file.blob.json });
+  });
+  async function nav(name: string) {
+    await page.getByRole("navigation").getByRole("button", { name, exact: true }).click();
+  }
+  async function save() {
+    await page.getByRole("button", { name: "儲存", exact: true }).click();
+    await expect(page.locator("#editor")).not.toBeVisible();
+  }
+  function form(key: string) { return page.locator("#field-" + key); }
+  async function synchronize() {
+    h.context.refreshLibrary_();
+    await publicPage.clock.fastForward(60_100);
+  }
+  const row = (title: string) => page.getByRole("row").filter({ hasText: title });
+  const publicApp = () => publicPage.locator(".showcase-card").filter({ hasText: "公開成果測試" });
+  await publicPage.goto("/showcase");
+  await expect(publicPage.getByText("還沒找到符合的成果")).toBeVisible();
+  await expect(publicPage.locator(".showcase-card")).toHaveCount(0);
+
+  await nav("成果與資源分類管理");
+  await page.getByRole("button", { name: "＋ 新增分類" }).click();
+  await form("name").fill("新增實務分類");
+  await form("module").selectOption("showcases");
+  await form("sortOrder").fill("0");
+  await save();
+  const categoryId = h.call("listRecords", "LibraryCategories").data.find((r) => r.name === "新增實務分類").id;
+  await nav("AI 應用成果庫管理");
+  await expect(row("把會議整理時間，留給更重要的陪伴")).toContainText("草稿");
+  await page.getByRole("button", { name: "＋ 新增AI 應用成果" }).click();
+  await form("title").fill("公開成果測試");
+  await form("categoryId").selectOption(categoryId);
+  await form("summary").fill("草稿摘要");
+  await form("organization").fill("隔離測試團隊");
+  page.once("dialog", (d) => d.dismiss());
+  await page.locator("#editor-close").click();
+  await expect(page.locator("#editor")).toBeVisible();
+  await save();
+  await synchronize();
+  await expect(publicApp()).toHaveCount(0);
+
+  await row("公開成果測試").getByRole("button", { name: "編輯", exact: true }).click();
+  const pixels = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 16;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#005533";
+    ctx.fillRect(0, 0, 16, 16);
+    return canvas.toDataURL("image/png").split(",")[1];
+  });
+  const image = { name: "cover.png", mimeType: "image/png", buffer: Buffer.from(pixels, "base64") };
+  await page.getByLabel("上傳封面圖片").setInputFiles(image);
+  await expect(page.getByAltText("封面圖片 1")).toBeVisible();
+  await page.getByLabel("上傳展示圖片").setInputFiles(image);
+  await expect(page.getByAltText("展示圖片 1")).toBeVisible();
+  await form("summary").fill("發布後的摘要");
+  await form("status").selectOption("published");
+  await form("featured").selectOption("pinned");
+  await form("appUrl").fill("https://example.org/app");
+  await form("instructionsUrl").fill("https://example.org/guide");
+  await form("videoUrl").fill("https://www.youtube.com/watch?v=test");
+  await form("githubUrl").fill("https://github.com/example/repo");
+  await form("features").fill("具備 **可格式化** 的文字");
+  await page.getByRole("button", { name: "預覽公開欄位" }).click();
+  await expect(page.locator("#preview-body").getByRole("link", { name: "體驗 AI 應用" })).toHaveAttribute("href", "https://example.org/app");
+  await page.locator("#preview-close").click();
+  await save();
+  await synchronize();
+  await expect(publicPage.locator(".showcase-card").first()).toContainText("公開成果測試");
+  const showcaseId = h.call("listRecords", "Showcases").data.find((r) => r.title === "公開成果測試").id;
+  const stored = h.call("getRecord", "Showcases", showcaseId).data;
+  expect(stored.cover).toMatch(/^data:image\/jpeg;base64,/);
+  expect(stored.gallery).toMatch(/^data:image\/jpeg;base64,/);
+  await publicPage.getByRole("button", { name: "新增實務分類", exact: true }).click();
+  await expect(publicPage.locator(".showcase-card")).toHaveCount(1);
+  await nav("成果與資源分類管理");
+  await row("新增實務分類").getByRole("button", { name: "編輯", exact: true }).click();
+  await form("name").fill("更新實務分類");
+  await save();
+  await synchronize();
+  await expect(publicPage.getByRole("button", { name: "更新實務分類" })).toHaveAttribute("aria-pressed", "true");
+  await publicApp().getByRole("link", { name: "公開成果測試", exact: true }).click();
+  await expect(publicPage.getByAltText("公開成果測試封面")).toBeVisible();
+  await expect(publicPage.getByAltText("成果展示圖片 1")).toBeVisible();
+  await expect(publicPage.locator(".library-text strong")).toHaveText("可格式化");
+  await expect(publicPage.getByRole("link", { name: "查看原始碼" })).toHaveAttribute("href", "https://github.com/example/repo");
+  await expect(publicPage.getByRole("link", { name: "操作教學" })).toHaveAttribute("href", "https://example.org/guide");
+  await expect(publicPage.getByRole("link", { name: "觀看影片" })).toHaveAttribute("href", "https://www.youtube.com/watch?v=test");
+  await nav("AI 應用成果庫管理");
+  await row("公開成果測試").getByRole("button", { name: "編輯", exact: true }).click();
+  await page.getByLabel("封面圖片網址").fill("https://example.org/new.jpg");
+  await page.getByRole("button", { name: "使用此封面網址" }).click();
+  await form("summary").fill("更新後的摘要");
+  await save();
+  await publicPage.route("https://example.org/new.jpg", (route) => route.fulfill({ contentType: "image/png", body: image.buffer }));
+  await synchronize();
+  await expect(publicPage.getByAltText("公開成果測試封面")).toHaveAttribute("src", "https://example.org/new.jpg");
+  await expect(publicPage.getByText("更新後的摘要", { exact: true })).toBeVisible();
+  await row("公開成果測試").getByRole("button", { name: "編輯", exact: true }).click();
+  await page.getByRole("button", { name: "移除圖片 1" }).first().click();
+  await save();
+  await synchronize();
+  await expect(publicPage.getByAltText("公開成果測試封面")).toHaveCount(0);
+  await row("公開成果測試").getByRole("button", { name: "複製", exact: true }).click();
+  await expect(form("status")).toHaveValue("draft");
+  await form("title").fill("複製的草稿");
+  await save();
+  expect(h.call("listRecords", "Showcases").data.find((r) => r.title === "複製的草稿").id).not.toBe(showcaseId);
+
+  page.once("dialog", (d) => d.accept());
+  await row("公開成果測試").getByRole("button", { name: "下架", exact: true }).click();
+  await expect(row("公開成果測試")).toContainText("已下架");
+  await synchronize();
+  await expect(publicPage.getByText("這條路，還沒通往未來。")).toBeVisible();
+  const decisions = [true, false];
+  const confirmDelete = async (dialog) => decisions.shift() ? dialog.accept() : dialog.dismiss();
+  page.on("dialog", confirmDelete);
+  await row("公開成果測試").getByRole("button", { name: "刪除", exact: true }).click();
+  page.off("dialog", confirmDelete);
+  expect(decisions).toHaveLength(0);
+  await expect(row("公開成果測試")).toBeVisible();
+
+  await nav("AI 學習資源管理");
+  await expect(row("第一次使用AI：提問與查證入門")).toContainText("草稿");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("button", { name: "＋ 新增AI 學習資源" }).click();
+  await form("title").fill("新學習資源");
+  await form("categoryId").selectOption("category_resources_1");
+  await form("summary").fill("可公開的學習摘要");
+  await form("type").selectOption("AI 工具");
+  await form("resourceUrl").fill("https://example.org/tool");
+  await form("attachments").fill("練習手冊｜https://drive.google.com/file/d/sample/view");
+  await form("status").selectOption("published");
+  await form("featured").selectOption("featured");
+  await save();
+  await synchronize();
+  await publicPage.setViewportSize({ width: 390, height: 844 });
+  await publicPage.goto("/resources");
+  await expect(publicPage.locator(".resource-card")).toHaveCount(1);
+  await expect(publicPage.locator(".resource-card").first()).toContainText("新學習資源");
+  await publicPage.getByLabel("資源類型").selectOption("AI 工具");
+  await expect(publicPage.locator(".resource-card")).toHaveCount(1);
+  await expect(publicPage.getByRole("link", { name: "下載教材 · 練習手冊" }))
+    .toHaveAttribute("href", "https://drive.google.com/file/d/sample/view");
+  await expect(publicPage.getByRole("link", { name: "使用工具" })).toHaveAttribute("href", "https://example.org/tool");
+  await row("新學習資源").getByRole("button", { name: "編輯", exact: true }).click();
+  await form("summary").fill("新版學習摘要");
+  await save();
+  await synchronize();
+  await expect(publicPage.getByText("新版學習摘要")).toBeVisible();
+  expect(await publicPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await row("新學習資源").getByRole("button", { name: "下架", exact: true }).click();
+  await expect(row("新學習資源")).toContainText("已下架");
+  await synchronize();
+  await expect(publicPage.getByText("還沒找到符合的資源")).toBeVisible();
+  await expect(publicPage.locator(".resource-card")).toHaveCount(0);
+
+  unavailable = true;
+  await synchronize();
+  await expect(publicPage.getByRole("alert")).toContainText("暫時無法載入");
+  await expect(publicPage.locator(".resource-card")).toHaveCount(0);
 });

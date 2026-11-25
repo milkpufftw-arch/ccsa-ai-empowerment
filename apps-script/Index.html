@@ -381,6 +381,11 @@
           font-size: 12px;
         }
       }
+      .library-images { display: grid; gap: .5rem; }
+      .library-image-list { display: flex; flex-wrap: wrap; gap: .6rem; }
+      .library-image-list img, .library-preview img { display: block; width: min(100%, 340px); height: auto; max-height: 220px; object-fit: contain; margin: .5rem 0; }
+      .library-image-list img { width: 120px; max-height: 120px; }
+      .library-preview-text { white-space: pre-wrap; overflow-wrap: anywhere; }
     </style>
   </head>
   <body>
@@ -454,6 +459,11 @@
         add_admin: "新增管理員",
         deactivate_admin: "停用管理員",
         initialize: "初始化",
+        showcases: "AI 應用成果",
+        resources: "AI 學習資源",
+        pinned: "置頂",
+        featured: "精選／推薦",
+        sample: "示範內容",
         applied: "完成",
         pending: "待確認",
         failed: "失敗",
@@ -464,15 +474,31 @@
         ["Courses", "課程活動"],
         ["Announcements", "公告"],
         ["Recruitment", "招募設定"],
+        ["Showcases", "AI 應用成果庫管理"],
+        ["LearningResources", "AI 學習資源管理"],
+        ["LibraryCategories", "成果與資源分類管理"],
         ["Publish", "公開資料發布"],
       ];
       let boot,
         current = "Dashboard",
         records = [],
+        categories = [],
+        libraryLastSyncAt = null,
+        navigationId = 0,
+        initialForm = "",
+        uploading = 0,
         editing = null,
         saving = false,
         pendingCalls = 0,
         toastTimer;
+      const libraryModules = { Showcases: "showcases", LearningResources: "resources" };
+      function isLibrary(table) {
+        return !!libraryModules[table] || table === "LibraryCategories";
+      }
+      function categoryChoices(table) {
+        return categories.filter((r) => r.module === libraryModules[table] && r.status === "published")
+          .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || a.name.localeCompare(b.name, "zh-TW"));
+      }
       function el(tag, text, cls) {
         const n = document.createElement(tag);
         if (text !== undefined) n.textContent = text;
@@ -537,20 +563,33 @@
         );
       }
       async function navigate(id) {
+        const sequence = ++navigationId;
         current = id;
         renderNavigation();
         $("page-title").textContent = sections.find((x) => x[0] === id)[1];
         $("view").replaceChildren();
         try {
           if (id === "Dashboard") {
-            boot = await rpc("getBootstrap");
-            if (current !== id) return;
+            const data = await rpc("getBootstrap");
+            if (sequence !== navigationId) return;
+            boot = data;
             renderDashboard();
           } else if (id === "Publish") renderPublish();
           else {
-            const rows = await rpc("listRecords", id);
-            if (current !== id) return;
+            if (!boot) return;
+            if (isLibrary(id) && !boot.libraryReady) {
+              $("view").append(el("p", "請聯絡管理員完成成果與學習資源資料移轉。", "banner"));
+              return;
+            }
+            const [rows, choices, sync] = await Promise.all([
+              rpc("listRecords", id),
+              libraryModules[id] ? rpc("listRecords", "LibraryCategories") : [],
+              isLibrary(id) ? rpc("getLibrarySyncStatus") : null,
+            ]);
+            if (sequence !== navigationId) return;
             records = rows;
+            categories = choices;
+            libraryLastSyncAt = sync;
             renderList();
           }
         } catch (e) {
@@ -643,11 +682,12 @@
         const card = el("section", undefined, "card"),
           tools = el("div", undefined, "toolbar");
         const search = el("input");
-        search.placeholder = "搜尋名稱、縣市或分類";
+        search.placeholder = isLibrary(tableName) ? "搜尋名稱、摘要或分類" : "搜尋名稱、縣市或分類";
         search.setAttribute("aria-label", "搜尋資料");
         const filter = el("select");
         filter.setAttribute("aria-label", "發布狀態篩選");
-        ["", "draft", "pending_review", "published", "archived"].forEach(
+        const states = ["", "draft", ...(["Organizations", "Courses"].includes(tableName) ? ["pending_review"] : []), "published", "archived"];
+        states.forEach(
           (v) => {
             const o = el("option", v ? labels[v] : "所有狀態");
             o.value = v;
@@ -655,6 +695,21 @@
           },
         );
         tools.append(search, filter);
+        const classification = el("select");
+        classification.setAttribute("aria-label", "依分類或模組篩選");
+        if (isLibrary(tableName)) {
+          const choices = libraryModules[tableName]
+            ? categoryChoices(tableName).map((r) => [r.id, r.name])
+            : Object.values(libraryModules).map((key) => [key, labels[key]]);
+          [["", "全部分類／模組"], ...choices].forEach(([value, name]) => {
+            const option = el("option", name);
+            option.value = value;
+            classification.append(option);
+          });
+          tools.append(classification);
+          if (libraryModules[tableName])
+            tools.append(action("管理分類", () => navigate("LibraryCategories")));
+        }
         if (tableName !== "Recruitment" || records.length === 0)
           tools.append(
             canWrite(
@@ -665,6 +720,14 @@
               ),
             ),
           );
+        if (isLibrary(tableName)) {
+          const lastSync = libraryLastSyncAt;
+          if (!lastSync || Date.now() - Date.parse(lastSync) > 600000) {
+            card.append(el("p", "尚未確認自動同步，或同步已中斷。請通知管理員檢查 Apps Script 觸發條件。", "banner"));
+          } else {
+            card.append(el("p", "最近一次產生公開快照：" + localTime(lastSync), "id"));
+          }
+        }
         card.append(tools);
         const wrap = el("div", undefined, "table-wrap");
         card.append(wrap);
@@ -672,11 +735,18 @@
           const filtered = records.filter(
             (r) =>
               (!filter.value || r.status === filter.value) &&
-              [r.name, r.title, r.city, r.category, r.description]
+              (!classification.value || [r.categoryId, r.module].includes(classification.value)) &&
+              [r.name, r.title, r.city, r.category, r.description, r.summary, r.type, r.organization,
+                categories.find((c) => c.id === r.categoryId)?.name, labels[r.module]]
                 .join(" ")
                 .toLowerCase()
                 .includes(search.value.trim().toLowerCase()),
           );
+          if (isLibrary(tableName)) {
+            const rank = { pinned: 2, featured: 1 };
+            filtered.sort((a, b) => (rank[b.featured] || 0) - (rank[a.featured] || 0) ||
+              Number(a.sortOrder || 0) - Number(b.sortOrder || 0) || a.id.localeCompare(b.id));
+          }
           const table = el("table"),
             head = el("thead"),
             tr = el("tr");
@@ -693,8 +763,12 @@
               el("strong", r.name || r.title || "機構招募設定"),
               el("div", r.id, "id"),
             );
+            if (isLibrary(tableName)) title.append(el("div",
+              (categories.find((c) => c.id === r.categoryId)?.name || labels[r.module] || "") +
+              "｜順序 " + (r.sortOrder || "0"), "id"));
             const s = el("td");
             s.append(status(r.status));
+            if (r.featured) s.append(status(r.featured));
             const ops = el("td");
             ops.append(
               action("編輯", () => openEditor(tableName, r)),
@@ -714,6 +788,8 @@
                 ),
               ),
             );
+            if (libraryModules[tableName])
+              ops.append(canWrite(action("複製", () => openEditor(tableName, r, true))));
             line.append(title, s, el("td", localTime(r.updatedAt)), ops);
             body.append(line);
           });
@@ -724,14 +800,15 @@
         }
         search.addEventListener("input", draw);
         filter.addEventListener("change", draw);
+        classification.addEventListener("change", draw);
         draw();
         $("view").replaceChildren(card);
       }
-      function openEditor(table, record) {
-        editing = { table, record: record || null };
+      function openEditor(table, record, copy = false) {
+        editing = { table, record: copy ? null : record || null };
         $("editor-title").textContent =
-          (record ? "編輯" : "新增") + boot.schemas[table].label;
-        $("record-meta").textContent = record
+          (copy ? "複製" : record ? "編輯" : "新增") + boot.schemas[table].label;
+        $("record-meta").textContent = record && !copy
           ? "ID：" + record.id + "｜版本 " + record.version
           : "儲存後會自動產生唯一ID。";
         $("editor-error").textContent = "";
@@ -754,28 +831,47 @@
           ],
         ];
         fields.forEach(([key, title, type, required, limit]) => {
+          if (isLibrary(table) && key === "title") title = table === "Showcases" ? "成果名稱" : "資源名稱";
           const label = el(
             "label",
-            title + (required ? " ＊" : ""),
-            type === "textarea" ? "wide" : "",
+            title + (required ? " ＊" : isLibrary(table) ? "（選填）" : ""),
+            ["textarea", "library-image", "library-gallery", "library-links"].includes(type) ? "wide" : "",
           );
+          if (["library-image", "library-gallery"].includes(type)) {
+            label.htmlFor = "field-" + key;
+            $("fields").append(label);
+            renderImageField(label, key, type === "library-gallery", record?.[key] || "", limit);
+            return;
+          }
           let input;
-          if (type === "select") {
+          if (type === "category") {
+            input = el("select");
+            const empty = el("option", "請選擇分類");
+            empty.value = "";
+            input.append(empty);
+            categoryChoices(table).forEach((r) => {
+              const option = el("option", r.name);
+              option.value = r.id;
+              input.append(option);
+            });
+          } else if (type === "select") {
             input = el("select");
             limit.forEach((v) => {
-              const o = el("option", labels[v] || v);
+              const o = el("option", labels[v] || v || "未設定");
               o.value = v;
               input.append(o);
             });
           } else {
-            input = el(type === "textarea" ? "textarea" : "input");
-            if (type !== "textarea")
+            const multiline = ["textarea", "library-links"].includes(type);
+            input = el(multiline ? "textarea" : "input");
+            if (!multiline)
               input.type =
                 type === "date"
                   ? "date"
                   : ["url", "form", "image"].includes(type)
                     ? "url"
                     : "text";
+            if (type === "order") { input.inputMode = "numeric"; input.pattern = "[0-9]{1,6}"; }
             if (typeof limit === "number") input.maxLength = limit;
           }
           input.name = key;
@@ -783,15 +879,23 @@
           input.required = required;
           input.disabled = !boot.writeEnabled;
           input.value =
-            record?.[key] ??
+            ((copy && ["status", "publishedAt"].includes(key)) ? undefined : record?.[key]) ??
             (key === "status"
-              ? "draft"
+              ? table === "LibraryCategories" ? "published" : "draft"
               : key === "formUrl"
                 ? "https://docs.google.com/forms/d/e/1FAIpQLSdYOmU6G3BHpwnS_FqiO1yjfdEisC5e-3EqhL0QzycA9FwDiQ/viewform"
                 : type === "select"
                   ? limit[0]
                   : "");
           label.append(input);
+          if (isLibrary(table) && type === "textarea" && !["summary", "tools"].includes(key) && boot.writeEnabled) {
+            label.append(action("加粗選取文字", () => {
+              if (input.selectionStart === input.selectionEnd) return;
+              const selected = input.value.slice(input.selectionStart, input.selectionEnd);
+              input.setRangeText("**" + selected + "**", input.selectionStart, input.selectionEnd, "select");
+              input.focus();
+            }));
+          }
           if (key === "logoUrl")
             label.append(
               el(
@@ -805,8 +909,165 @@
             );
           $("fields").append(label);
         });
+        initialForm = JSON.stringify(formData());
         $("save").disabled = !boot.writeEnabled;
         $("editor").showModal();
+      }
+      function imageSource(value) {
+        return /^https:\/\/[a-z0-9.-]+(?:[/?][^\s@#\\]*)?$/i.test(value) ||
+          /^data:image\/jpeg;base64,\/9j\/[A-Za-z0-9+/]+={0,2}$/.test(value);
+      }
+      function showImage(value, alt) {
+        const img = el("img");
+        img.src = value;
+        img.alt = alt;
+        img.referrerPolicy = "no-referrer";
+        img.addEventListener("error", () => img.replaceWith(el("span", "無法載入圖片")));
+        return img;
+      }
+      async function compressImage(file, limit) {
+        if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 12_000_000)
+          throw new Error("請選擇 12 MB 以下的 JPG、PNG 或 WebP 圖片。");
+        const bitmap = await createImageBitmap(file);
+        try {
+          const canvas = el("canvas");
+          let scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
+          for (let attempt = 0; attempt < 8; attempt++, scale *= 0.75) {
+            canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+            canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+            const context = canvas.getContext("2d", { alpha: false });
+            context.fillStyle = "#fff";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const data = canvas.toDataURL("image/jpeg", Math.max(0.45, 0.85 - attempt * 0.05));
+            if (data.length <= limit) return data;
+          }
+          throw new Error("圖片超過可用容量，請移除其他圖片或改用網址。");
+        } finally {
+          bitmap.close();
+        }
+      }
+      function renderImageField(label, key, multiple, value, limit) {
+        const group = el("div", undefined, "wide library-images");
+        const stored = el("input");
+        stored.type = "hidden";
+        stored.name = key;
+        stored.value = value;
+        const preview = el("div", undefined, "library-image-list");
+        const url = el("input");
+        url.type = "url";
+        url.maxLength = 1500;
+        url.placeholder = "https://";
+        url.id = "field-" + key;
+        url.dataset.pendingImageUrl = "";
+        url.setAttribute("aria-label", multiple ? "展示圖片網址" : "封面圖片網址");
+        url.disabled = !boot.writeEnabled;
+        const file = el("input");
+        file.type = "file";
+        file.accept = "image/jpeg,image/png,image/webp";
+        file.setAttribute("aria-label", multiple ? "上傳展示圖片" : "上傳封面圖片");
+        file.disabled = !boot.writeEnabled;
+        const error = el("p", "", "error");
+        error.setAttribute("role", "alert");
+        function items() { return stored.value.split("\n").filter(Boolean); }
+        function draw() {
+          preview.replaceChildren();
+          items().forEach((src, index) => {
+            const figure = el("div");
+            if (imageSource(src)) figure.append(showImage(src, (multiple ? "展示圖片 " : "封面圖片 ") + (index + 1)));
+            figure.append(canWrite(action("移除圖片 " + (index + 1), () => {
+              update(items().filter((_, i) => i !== index));
+            })));
+            preview.append(figure);
+          });
+        }
+        function update(next) {
+          if (next.length > 8 || next.join("\n").length > limit)
+            throw new Error("展示圖片最多 8 張，且上傳容量有限。請移除部分圖片或改用網址。");
+          stored.value = next.join("\n");
+          error.textContent = "";
+          draw();
+        }
+        function add(src) {
+          update(multiple ? [...items(), src] : [src]);
+          url.value = "";
+        }
+        const urlButton = canWrite(action(multiple ? "加入圖片網址" : "使用此封面網址", () => {
+          const value = url.value.trim();
+          try {
+            if (!value.startsWith("https://") || !imageSource(value))
+              throw new Error("請輸入有效的 HTTPS 圖片網址。");
+            add(value);
+          } catch (e) { error.textContent = e.message; }
+        }));
+        url.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") { event.preventDefault(); urlButton.click(); }
+        });
+        file.addEventListener("change", async () => {
+          const selected = file.files[0];
+          if (!selected) return;
+          file.disabled = true;
+          uploading++;
+          $("save").disabled = true;
+          try {
+            const capacity = multiple ? Math.min(14000, limit - stored.value.length - 1) : limit;
+            add(await compressImage(selected, capacity));
+          } catch (e) { error.textContent = e.message; }
+          finally {
+            uploading--;
+            $("save").disabled = uploading > 0 || saving || !boot.writeEnabled;
+            file.disabled = !boot.writeEnabled;
+            file.value = "";
+          }
+        });
+        group.append(stored, preview, url, urlButton, file, error,
+          el("small", multiple ? "可逐張上傳或加入圖片網址；圖片會自動縮小。" :
+            "上傳或套用網址即可更換封面；上傳圖片會自動縮小。"));
+        label.after(group);
+        draw();
+      }
+      function renderLibraryPreview(body, table, record) {
+        const card = el("article", undefined, "card library-preview");
+        card.append(el("h2", record.title || record.name), status(record.status));
+        const category = categories.find((c) => c.id === record.categoryId);
+        if (category) card.append(el("span", category.name, "tag"));
+        if (record.featured) card.append(status(record.featured));
+        if (record.cover && imageSource(record.cover)) card.append(showImage(record.cover, "封面圖片"));
+        const captions = {
+          appUrl: "體驗 AI 應用", githubUrl: "查看原始碼", instructionsUrl: "操作教學",
+          videoUrl: "觀看影片", resourceUrl: record.type === "AI 工具" ? "使用工具" : "前往學習",
+        };
+        function appendLink(label, url) {
+          if (!url?.startsWith("https://") || !imageSource(url)) return;
+          const a = el("a", label);
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          card.append(a, el("br"));
+        }
+        boot.schemas[table].fields.forEach(([key, title, type]) => {
+          const value = record[key];
+          if (!value || ["title", "name", "categoryId", "cover", "featured"].includes(key)) return;
+          if (type === "library-gallery") {
+            value.split("\n").filter(imageSource).forEach((src, index) =>
+              card.append(showImage(src, "展示圖片 " + (index + 1))));
+          } else if (type === "library-links") {
+            value.split("\n").forEach((line) => {
+              const [label, url] = line.split("｜");
+              appendLink(label.trim(), url?.trim());
+            });
+          } else if (type === "url") {
+            appendLink(captions[key] || title, value);
+          } else {
+            const paragraph = el("p", undefined, "library-preview-text");
+            (labels[value] || value).split(/(\*\*[^*\n]+\*\*)/).forEach((part) =>
+              paragraph.append(part.startsWith("**") && part.endsWith("**") && part.length > 4
+                ? el("strong", part.slice(2, -2)) : document.createTextNode(part)));
+            if (key !== "summary") card.append(el("h3", title));
+            card.append(paragraph);
+          }
+        });
+        body.append(card);
       }
       function formData() {
         const data = {};
@@ -821,11 +1082,17 @@
       }
       $("record-form").addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (saving || !boot.writeEnabled) return;
+        if (saving || uploading || !boot.writeEnabled) return;
+        const pendingUrl = [...$("fields").querySelectorAll("[data-pending-image-url]")].find((field) => field.value.trim());
+        if (pendingUrl) {
+          $("editor-error").textContent = "請先套用或清除尚未加入的圖片網址。";
+          pendingUrl.focus();
+          return;
+        }
         if (
           formData().status === "archived" &&
           editing.record?.status !== "archived" &&
-          !confirm("確定下架？重新匯出並部署後才會從網站移除。")
+          !confirm(isLibrary(editing.table) ? "確定下架？下次同步後將從網站移除。" : "確定下架？重新匯出並部署後才會從網站移除。")
         )
           return;
         saving = true;
@@ -834,7 +1101,8 @@
         try {
           await rpc("saveRecord", editing.table, formData());
           $("editor").close();
-          notify("儲存成功。完成公開資料匯出及部署後，網站才會更新。");
+          notify(isLibrary(editing.table) ? "儲存成功。啟用自動同步後，已發布的變更會更新至網站。" :
+            "儲存成功。完成公開資料匯出及部署後，網站才會更新。");
           await navigate(current);
         } catch (e) {
           $("editor-error").textContent = e.message;
@@ -843,11 +1111,24 @@
           $("save").disabled = !boot.writeEnabled;
         }
       });
+      function hasUnsavedChanges() {
+        return $("editor").open && (JSON.stringify(formData()) !== initialForm ||
+          [...$("fields").querySelectorAll("[data-pending-image-url]")].some((field) => field.value.trim()));
+      }
+      function mayCloseEditor() {
+        return !saving && !uploading && (!hasUnsavedChanges() || confirm("尚有未儲存的變更，確定離開？"));
+      }
       $("editor-close").onclick = () => {
-        if (!saving) $("editor").close();
+        if (mayCloseEditor()) $("editor").close();
       };
-      $("editor").addEventListener("cancel", (e) => {
-        if (saving) e.preventDefault();
+      $("editor").addEventListener("cancel", (event) => {
+        if (!mayCloseEditor()) event.preventDefault();
+      });
+      window.addEventListener("beforeunload", (event) => {
+        if (saving || uploading || hasUnsavedChanges()) {
+          event.preventDefault();
+          event.returnValue = "";
+        }
       });
       $("preview-close").onclick = () => $("preview").close();
       $("record-preview").onclick = () =>
@@ -861,6 +1142,11 @@
             "banner",
           ),
         );
+        if (isLibrary(table)) {
+          renderLibraryPreview(body, table, record);
+          $("preview").showModal();
+          return;
+        }
         boot.schemas[table].fields
           .filter((f) => f[0] !== "internalNotes")
           .forEach(([key, label, type]) => {
@@ -882,18 +1168,19 @@
           !confirm(
             (deleting
               ? "確定刪除？刪除後無法復原。"
-              : "確定下架？下次匯出並部署後才會從網站移除。") +
+              : isLibrary(table) ? "確定下架？下次同步後將從網站移除。" : "確定下架？下次匯出並部署後才會從網站移除。") +
               "\n" +
               (record.name || record.title || "招募設定"),
           )
         )
           return;
+        if (deleting && isLibrary(table) && !confirm("再次確認：是否永久刪除「" + (record.title || record.name) + "」？")) return;
         try {
           await rpc(method, table, record.id, record.version);
           notify(
             deleting
               ? "資料已刪除。"
-              : "資料已下架，請記得重新匯出並部署網站。",
+              : isLibrary(table) ? "資料已下架，將在下次自動同步後從網站移除。" : "資料已下架，請記得重新匯出並部署網站。",
           );
           await navigate(current);
         } catch (e) {

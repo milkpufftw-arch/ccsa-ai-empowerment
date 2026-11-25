@@ -298,7 +298,7 @@ test("試算表公式注入會以純文字儲存", () => {
   );
 });
 test("只暴露預定RPC，初始化及輔助函式以_結尾；部署不是匿名或擁有者模式", () => {
-  const source = ["Schema.gs", "Server.gs", "Setup.gs"]
+  const source = ["Schema.gs", "Server.gs", "Setup.gs", "Library.gs", "LibrarySetup.gs", "LibrarySeed.gs"]
     .map((f) =>
       readFileSync(new URL("../../apps-script/" + f, import.meta.url), "utf8"),
     )
@@ -315,9 +315,11 @@ test("只暴露預定RPC，初始化及輔助函式以_結尾；部署不是匿�
       "doGet",
       "exportPublic",
       "getBootstrap",
+      "getLibrarySyncStatus",
       "getRecord",
       "listRecords",
       "previewPublic",
+      "previewLibrary",
       "saveRecord",
     ].sort(),
   );

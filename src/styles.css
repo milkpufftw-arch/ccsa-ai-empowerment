@@ -1761,3 +1761,36 @@ blockquote {
   height: auto;
   object-fit: contain;
 }
+
+.library-card-cover {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.library-detail-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  border-radius: 12px;
+  margin-block: 1rem;
+}
+.resource-card .library-detail-image { max-height: 230px; }
+.library-gallery, .library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.library-gallery img { flex: 1 1 230px; min-width: 0; }
+.library-actions:not(:empty) { margin-top: 1rem; }
+.library-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.library-type-filter select {
+  border: 1px solid #b8cbc6;
+  border-radius: 8px;
+  padding: .45rem .7rem;
+  background: white;
+}

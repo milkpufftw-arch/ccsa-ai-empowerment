@@ -14,7 +14,7 @@ export interface Showcase {
   id: string;
   title: string;
   organization: string;
-  category: Category;
+  category: string;
   context: string;
   problem: string;
   tools: string[];
@@ -25,7 +25,7 @@ export interface Showcase {
   limitations: string;
   publishedAt: string;
   status: PublicationStatus;
-  isDemo: true;
+  isDemo: boolean;
   summary: string;
 }
 export const projects = [

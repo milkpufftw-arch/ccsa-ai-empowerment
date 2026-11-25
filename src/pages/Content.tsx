@@ -1,4 +1,4 @@
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useState } from "react";
 import {
   ArrowLeft,
@@ -6,7 +6,6 @@ import {
   Search,
   BookOpen,
   ShieldCheck,
-  ChevronDown,
   CalendarDays,
   MapPin,
   Users,
@@ -16,16 +15,8 @@ import {
   ProjectCards,
   Notice,
   SectionTitle,
-  ShowcaseCard,
   CourseCard,
 } from "../components/UI";
-import {
-  categories,
-  showcases,
-  resources,
-  resourceCategories,
-  filterShowcases,
-} from "../data/content";
 export function About() {
   return (
     <>
@@ -372,226 +363,6 @@ export function CourseDetail() {
           )}
           <small>本網站不蒐集報名個資。</small>
         </aside>
-      </div>
-    </>
-  );
-}
-export function Showcase() {
-  const [params, setParams] = useSearchParams();
-  const category = params.get("category") || "全部成果";
-  const query = params.get("q") || "";
-  const filtered = filterShowcases(showcases, category, query);
-  function update(k: string, v: string) {
-    const p = new URLSearchParams(params);
-    v ? p.set(k, v) : p.delete(k);
-    setParams(p, { replace: true });
-  }
-  return (
-    <>
-      <PageIntro
-        eyebrow="IDEAS INTO IMPACT"
-        title="AI應用成果庫"
-        description="每一個實務嘗試，都可能成為另一個團隊的靈感。一起探索、交流，讓好方法持續發生。"
-      />
-      <div className="container section">
-        <Notice>
-          本區所有內容均為示範案例，不代表真實服務成果、合作機構或成效數據；不含真實個案資訊。
-        </Notice>
-        <div className="search-box">
-          <Search size={21} />
-          <label className="sr-only" htmlFor="case-search">
-            搜尋成果
-          </label>
-          <input
-            id="case-search"
-            placeholder="搜尋成果、AI工具或應用情境…"
-            value={query}
-            onChange={(e) => update("q", e.target.value)}
-          />
-          {query && <button onClick={() => update("q", "")}>清除</button>}
-        </div>
-        <div className="filter-tabs" aria-label="成果分類篩選">
-          {["全部成果", ...categories].map((c) => (
-            <button
-              key={c}
-              aria-pressed={category === c}
-              className={category === c ? "active" : ""}
-              onClick={() => update("category", c === "全部成果" ? "" : c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <div className="result-heading">
-          <p aria-live="polite">
-            共 <strong>{filtered.length}</strong> 件示範成果
-          </p>
-          <span>持續累積，分享更多可能</span>
-        </div>
-        {filtered.length ? (
-          <div className="grid three">
-            {filtered.map((c) => (
-              <ShowcaseCard item={c} key={c.id} index={showcases.indexOf(c)} />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <Search size={36} />
-            <h2>還沒找到符合的成果</h2>
-            <p>試試其他關鍵字，或查看所有分類。</p>
-            <button className="btn primary" onClick={() => setParams({})}>
-              清除所有篩選
-            </button>
-          </div>
-        )}
-      </div>
-    </>
-  );
-}
-export function ShowcaseDetail() {
-  const { id } = useParams();
-  const item = showcases.find((x) => x.id === id && x.status === "published");
-  if (!item) return <NotFound />;
-  return (
-    <>
-      <PageIntro
-        eyebrow="PRACTICE & POSSIBILITY"
-        title={item.title}
-        description={item.summary}
-      />
-      <div className="container section detail-layout">
-        <article>
-          <Link to="/showcase" className="text-link">
-            <ArrowLeft size={17} />
-            返回成果庫
-          </Link>
-          <Notice>
-            示範案例：機構、情境及方法均用於介面展示，不代表真實服務成果。
-          </Notice>
-          <div className="tag-row">
-            <span className="tag">{item.category}</span>
-            <span>{item.publishedAt}</span>
-          </div>
-          <h2>應用情境</h2>
-          <p>{item.context}</p>
-          <h2>原有問題及需求</h2>
-          <p>{item.problem}</p>
-          <h2>AI應用方法與操作步驟</h2>
-          <ol className="steps">
-            {item.steps.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-          <h2>提示詞範例</h2>
-          <blockquote>{item.prompt}</blockquote>
-          <h2>實際效益與評估方向</h2>
-          <p>{item.benefit}</p>
-          <h2>應用限制與注意事項</h2>
-          <p>{item.limitations}</p>
-          <h2>成果示意與附件</h2>
-          <p>
-            {item.attachments.length
-              ? ""
-              : "本示範未提供附件。成果卡片圖形為情境示意，非實際工具畫面。"}
-          </p>
-          {item.attachments.map((a) => (
-            <a key={a.url} href={a.url}>
-              {a.label}
-            </a>
-          ))}
-        </article>
-        <aside className="detail-aside">
-          <BookOpen size={30} />
-          <h3>成果小檔案</h3>
-          <dl>
-            <dt>成果ID</dt>
-            <dd>{item.id}</dd>
-            <dt>投稿機構（示範）</dt>
-            <dd>{item.organization}</dd>
-            <dt>使用工具</dt>
-            <dd>{item.tools.join("、")}</dd>
-            <dt>發布狀態</dt>
-            <dd>已發布・示範內容</dd>
-          </dl>
-          <p className="small">
-            請依機構規範評估工具與使用方式，並保留人工查證與覆核。
-          </p>
-          <Link className="text-link" to="/resources">
-            看看安全使用指引
-            <ArrowRight size={16} />
-          </Link>
-        </aside>
-      </div>
-    </>
-  );
-}
-export function Resources() {
-  const [category, setCategory] = useState("全部資源");
-  return (
-    <>
-      <PageIntro
-        eyebrow="YOUR LEARNING TOOLKIT"
-        title="每一步探索，都有資源陪你"
-        description="從入門教學、提示詞到實務指引，找到適合自己的AI學習起點。"
-      />
-      <div className="container section">
-        <Notice>
-          本頁為示範學習內容，不代表正式課程教材或機構政策。所有練習請使用公開資料或完全虛構情境。
-        </Notice>
-        <div className="filter-tabs" aria-label="資源分類">
-          {resourceCategories.map((c) => (
-            <button
-              key={c}
-              aria-pressed={category === c}
-              className={category === c ? "active" : ""}
-              onClick={() => setCategory(c)}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <p className="results-count" aria-live="polite">
-          共{" "}
-          {
-            resources.filter(
-              (r) => category === "全部資源" || category === r.category,
-            ).length
-          }{" "}
-          項示範資源
-        </p>
-        <div className="grid two">
-          {resources
-            .filter((r) => category === "全部資源" || category === r.category)
-            .map((r) => (
-              <article className="resource-card" key={r.id}>
-                <div className="resource-icon">
-                  <BookOpen size={26} />
-                </div>
-                <span className="tag">{r.category}</span>
-                <h2>{r.title}</h2>
-                <p>{r.body}</p>
-                <details>
-                  <summary>
-                    閱讀操作指引
-                    <ChevronDown size={18} />
-                  </summary>
-                  <ol className="steps">
-                    {r.steps.map((s) => (
-                      <li key={s}>{s}</li>
-                    ))}
-                  </ol>
-                  <span className="demo-label">示範資源</span>
-                </details>
-              </article>
-            ))}
-        </div>
-        <div className="partner-panel">
-          <ShieldCheck size={32} />
-          <h2>保護資料，是使用AI的第一步。</h2>
-          <p>
-            不輸入可辨識個人或服務兒少的資料，確認使用授權，並由人員查證與審核產出。AI的回答不等於事實，也不取代專業判斷。
-          </p>
-        </div>
       </div>
     </>
   );
