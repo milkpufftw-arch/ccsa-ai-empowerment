@@ -16,7 +16,7 @@ import {
   CourseCard,
   ShowcaseCard,
 } from "../components/UI";
-import { showcases } from "../data/content";
+import { LibraryStatus, useLibrary } from "../data/library";
 import {
   useContent,
   siteCourses,
@@ -26,6 +26,7 @@ import {
 export default function Home() {
   const { data, loading, error } = useContent();
   const courses = siteCourses(data);
+  const library = useLibrary();
   return (
     <>
       <section className="hero">
@@ -147,9 +148,10 @@ export default function Home() {
           link="走進AI應用成果庫"
           to="/showcase"
         />
+        <LibraryStatus status={library.status} />
         <div className="grid three">
-          {showcases.slice(0, 3).map((c, i) => (
-            <ShowcaseCard key={c.id} item={c} index={i} />
+          {library.showcases.slice(0, 3).map((c) => (
+            <ShowcaseCard key={c.id} item={c} />
           ))}
         </div>
       </section>

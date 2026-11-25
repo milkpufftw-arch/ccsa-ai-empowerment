@@ -10,7 +10,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { projects, type Showcase } from "../data/content";
+import { projects } from "../data/content";
+import type { SiteShowcase } from "../data/library";
+import { PublicImage } from "./LibraryMedia";
 export function SectionTitle({
   eyebrow,
   title,
@@ -87,9 +89,9 @@ export function ProjectCards() {
 }
 export function ShowcaseCard({
   item,
-  index = 0,
+  index = item.artIndex ?? 0,
 }: {
-  item: Showcase;
+  item: SiteShowcase;
   index?: number;
 }) {
   return (
@@ -121,12 +123,14 @@ export function ShowcaseCard({
                 ? "創意學習"
                 : "生活探索"}
           </span>
+          <PublicImage src={item.cover} alt="" className="library-card-cover" />
         </div>
       </Link>
       <div className="card-content">
         <div className="tag-row">
           <span className="tag">{item.category}</span>
-          <span className="demo-label">示範案例</span>
+          {item.isDemo && <span className="demo-label">示範案例</span>}
+          {item.featured && <span className="tag">{item.featured === "pinned" ? "置頂" : "精選"}</span>}
         </div>
         <h3>
           <Link to={`/showcase/${item.id}`}>{item.title}</Link>

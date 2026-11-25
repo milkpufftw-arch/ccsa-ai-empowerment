@@ -21,6 +21,7 @@ function getBootstrap() {
       email: ctx.email,
       writeEnabled: writesEnabled_(ctx),
       schemas: publicSchemas_(),
+      libraryReady: libraryReady_(),
       counts: {
         organizations: data.Organizations.length,
         publishedOrganizations: data.Organizations.filter(isPublished_).length,
@@ -95,11 +96,12 @@ function saveRecord(table, input) {
       }
       if (table === "Organizations" && before && values.status !== "published")
         assertNoPublishedCourse_(ctx.book, before.id);
+      if (librarySchema_(table)) validateLibraryReference_(ctx.book, table, values, before);
       const now = new Date().toISOString();
       const record = Object.assign({}, values, {
         id: before
           ? before.id
-          : SCHEMAS_[table].prefix + "_" + Utilities.getUuid(),
+          : schema_(table).prefix + "_" + Utilities.getUuid(),
         createdAt: before ? before.createdAt : now,
         updatedAt: now,
         version: before ? before.version + 1 : 1,
@@ -134,6 +136,7 @@ function archiveRecord(table, id, version) {
         "資料已變更，請重新載入。",
       );
       if (table === "Organizations") assertNoPublishedCourse_(ctx.book, id);
+      if (table === "LibraryCategories") assertUnusedLibraryCategory_(ctx.book, id);
       const record = Object.assign({}, found.record, {
         status: "archived",
         version: version + 1,
@@ -171,6 +174,7 @@ function deleteRecord(table, id, version) {
           "VALIDATION",
           "此機構仍有關聯課程，請先解除關聯。",
         );
+      if (table === "LibraryCategories") assertUnusedLibraryCategory_(ctx.book, id);
       return mutate_(ctx, "delete", table, id, function () {
         sheet_(ctx.book, table).deleteRow(found.row);
         return { id: id };
@@ -322,14 +326,15 @@ function locked_(fn) {
 }
 function contentTable_(t) {
   assert_(
-    CONTENT_TABLES_.indexOf(t) !== -1,
+    CONTENT_TABLES_.indexOf(t) !== -1 || !!librarySchema_(t),
     "INVALID_TABLE",
     "不允許操作此資料表。",
   );
+  if (librarySchema_(t)) assert_(libraryReady_(), "SCHEMA", "請聯絡管理員完成成果與資源資料移轉。");
 }
 function sheet_(book, table) {
   assert_(
-    Object.prototype.hasOwnProperty.call(SCHEMAS_, table),
+    !!schema_(table),
     "INVALID_TABLE",
     "資料表無效。",
   );
@@ -452,6 +457,8 @@ function mutate_(ctx, action, entity, recordId, fn) {
   writeRow_(sheet, "AuditLogs", row, audit);
   let result;
   try {
+    if (librarySchema_(entity))
+      PropertiesService.getScriptProperties().setProperty("LIBRARY_DIRTY", "true");
     result = fn();
   } catch (e) {
     audit.outcome = "failed";
@@ -492,8 +499,8 @@ function isPublished_(r) {
 }
 function publicSchemas_() {
   const out = {};
-  CONTENT_TABLES_.forEach(function (t) {
-    out[t] = { label: SCHEMAS_[t].label, fields: SCHEMAS_[t].fields };
+  CONTENT_TABLES_.concat(LIBRARY_TABLES_).forEach(function (t) {
+    out[t] = { label: schema_(t).label, fields: schema_(t).fields };
   });
   return out;
 }

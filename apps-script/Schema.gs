@@ -159,7 +159,7 @@ const CONTENT_TABLES_ = [
 
 function headers_(table) {
   return BASE_.concat(
-    SCHEMAS_[table].fields.map(function (f) {
+    schema_(table).fields.map(function (f) {
       return f[0];
     }),
   );
@@ -195,7 +195,7 @@ function safeUrl_(value, type) {
 }
 function validateFields_(table, input) {
   assert_(
-    CONTENT_TABLES_.indexOf(table) !== -1,
+    CONTENT_TABLES_.indexOf(table) !== -1 || !!librarySchema_(table),
     "INVALID_TABLE",
     "不允許操作此資料表。",
   );
@@ -204,7 +204,7 @@ function validateFields_(table, input) {
     "VALIDATION",
     "資料格式錯誤。",
   );
-  const schema = SCHEMAS_[table];
+  const schema = schema_(table);
   const allowed = schema.fields
     .map(function (f) {
       return f[0];
@@ -218,7 +218,7 @@ function validateFields_(table, input) {
     "VALIDATION",
     "請選擇發布狀態。",
   );
-  if (table === "Announcements" || table === "Recruitment")
+  if (librarySchema_(table) || table === "Announcements" || table === "Recruitment")
     assert_(
       input.status !== "pending_review",
       "VALIDATION",
@@ -257,6 +257,7 @@ function validateFields_(table, input) {
         "VALIDATION",
         "關聯機構ID格式錯誤。",
       );
+    if (v && librarySchema_(table)) validateLibraryValue_(type, v, label);
     out[key] = v;
   });
   if (table === "Courses" && out.registrationStatus === "open")
