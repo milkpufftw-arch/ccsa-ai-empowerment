@@ -22,6 +22,7 @@ function getBootstrap() {
       writeEnabled: writesEnabled_(ctx),
       schemas: publicSchemas_(),
       libraryReady: libraryReady_(),
+      contentSync: contentSyncStatus_(),
       counts: {
         organizations: data.Organizations.length,
         publishedOrganizations: data.Organizations.filter(isPublished_).length,
@@ -182,6 +183,18 @@ function deleteRecord(table, id, version) {
     });
   });
 }
+function contentSyncStatus_() {
+  const props = PropertiesService.getScriptProperties();
+  return {
+    enabled: Boolean(props.getProperty("CONTENT_PUBLIC_FILE_ID")),
+    lastSyncAt: props.getProperty("CONTENT_LAST_SYNC_AT"),
+  };
+}
+
+function getContentSyncStatus() {
+  return rpc_(contentSyncStatus_);
+}
+
 function previewPublic() {
   return rpc_(function (ctx) {
     return locked_(function () {
@@ -459,6 +472,8 @@ function mutate_(ctx, action, entity, recordId, fn) {
   try {
     if (librarySchema_(entity))
       PropertiesService.getScriptProperties().setProperty("LIBRARY_DIRTY", "true");
+    if (CONTENT_TABLES_.indexOf(entity) !== -1)
+      PropertiesService.getScriptProperties().setProperty("CONTENT_DIRTY", "true");
     result = fn();
   } catch (e) {
     audit.outcome = "failed";

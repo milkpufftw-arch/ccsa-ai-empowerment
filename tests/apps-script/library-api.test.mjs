@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync, verify } from "node:crypto";
 import { test } from "node:test";
 import handler from "../../api/library.mjs";
+import contentHandler from "../../api/content.mjs";
 import { harness } from "./harness.mjs";
 
 function response() {
@@ -16,7 +17,7 @@ function response() {
 
 test("Vercel API 只讀取固定 Drive 檔，拒絕寫入、過期或含私有欄位的快照", async (t) => {
   const call = async (method = "GET") => handler({ method, url: "/api/library?id=other-file" }, response());
-  const environment = ["LIBRARY_PUBLIC_FILE_ID", "LIBRARY_DRIVE_CLIENT_EMAIL", "LIBRARY_DRIVE_PRIVATE_KEY"];
+  const environment = ["LIBRARY_PUBLIC_FILE_ID", "CONTENT_PUBLIC_FILE_ID", "LIBRARY_DRIVE_CLIENT_EMAIL", "LIBRARY_DRIVE_PRIVATE_KEY"];
   const saved = environment.map((key) => process.env[key]);
   t.after(() => environment.forEach((key, index) => {
     if (saved[index] === undefined) delete process.env[key];
@@ -36,6 +37,11 @@ test("Vercel API 只讀取固定 Drive 檔，拒絕寫入、過期或含私有�
   const h = harness();
   h.migrateLibrary();
   const snapshot = h.call("previewLibrary").data;
+  const content = h.call("previewPublic").data;
+  const callContent = (method = "GET") => contentHandler({ method }, response());
+  assert.equal((await callContent()).statusCode, 204);
+  assert.equal((await callContent("POST")).statusCode, 405);
+  process.env.CONTENT_PUBLIC_FILE_ID = "legacy-approved-content";
   let payload = snapshot;
   t.mock.method(globalThis, "fetch", async (url, options) => {
     if (url === "https://oauth2.googleapis.com/token") {
@@ -43,6 +49,10 @@ test("Vercel API 只讀取固定 Drive 檔，拒絕寫入、過期或含私有�
       assert.equal(JSON.parse(Buffer.from(claim, "base64url")).scope, "https://www.googleapis.com/auth/drive.readonly");
       assert.ok(verify("RSA-SHA256", Buffer.from(header + "." + claim), publicKey, Buffer.from(signature, "base64url")));
       return Response.json({ access_token: "mock-drive-oauth", expires_in: 3600 });
+    }
+    if (url === "https://www.googleapis.com/drive/v3/files/legacy-approved-content?alt=media") {
+      assert.equal(options.headers.Authorization, "Bearer mock-drive-oauth");
+      return Response.json(content);
     }
     assert.equal(url, "https://www.googleapis.com/drive/v3/files/approved-file-id?alt=media");
     assert.equal(options.headers.Authorization, "Bearer mock-drive-oauth");
@@ -53,6 +63,9 @@ test("Vercel API 只讀取固定 Drive 檔，拒絕寫入、過期或含私有�
   assert.equal(first.headers.get("Cache-Control"), "no-store");
   assert.equal(first.body.showcases.length, 0);
   assert.equal(first.body.resources.length, 0);
+  const second = await callContent();
+  assert.equal(second.statusCode, 200);
+  assert.deepEqual(second.body, content);
   payload = { ...snapshot, generatedAt: "2000-01-01T00:00:00Z" };
   assert.equal((await call()).statusCode, 503);
   payload = { ...snapshot, categories: [{ ...snapshot.categories[0], internalNotes: "private" }, ...snapshot.categories.slice(1)] };

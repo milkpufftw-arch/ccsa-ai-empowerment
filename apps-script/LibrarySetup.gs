@@ -45,19 +45,18 @@ function migrateLibrary_() {
   });
 }
 
-function writeLibraryFile_(book, props) {
-  const data = buildLibrary_(book);
+function writePublicSnapshot_(data, props, prefix, filename) {
   const json = JSON.stringify(data);
-  const blob = Utilities.newBlob(json, "application/json", "ccsa-public-library.json");
-  assert_(blob.getBytes().length <= 3500000, "LIBRARY_SIZE", "公開快照超過 3.5 MB，請改用部分圖片網址。");
+  const blob = Utilities.newBlob(json, "application/json", filename);
+  assert_(blob.getBytes().length <= 3500000, "LIBRARY_SIZE", "公開快照超過 3.5 MB，請調整已發布內容或改用圖片網址。");
   const reader = props.getProperty("LIBRARY_SNAPSHOT_READER") || "";
   assert_(/^[a-z0-9._-]+@[a-z0-9.-]+\.iam\.gserviceaccount\.com$/i.test(reader),
     "NOT_CONFIGURED", "請先設定 LIBRARY_SNAPSHOT_READER 為專用的服務帳戶 Email。");
-  let id = props.getProperty("LIBRARY_PUBLIC_FILE_ID");
+  let id = props.getProperty(prefix + "_PUBLIC_FILE_ID");
   if (!id) {
-    const file = Drive.Files.create({ name: "CCSA 公開成果與資源.json" }, blob, { fields: "id" });
+    const file = Drive.Files.create({ name: filename }, blob, { fields: "id" });
     id = file.id;
-    props.setProperty("LIBRARY_PUBLIC_FILE_ID", id);
+    props.setProperty(prefix + "_PUBLIC_FILE_ID", id);
   }
   const result = Drive.Permissions.list(id, { fields: "permissions(type,role,emailAddress),nextPageToken", pageSize: 100 });
   const permissions = result.permissions || [];
@@ -69,41 +68,63 @@ function writeLibraryFile_(book, props) {
     Drive.Permissions.create({ type: "user", role: "reader", emailAddress: reader }, id,
       { sendNotificationEmail: false });
   Drive.Files.update({}, id, blob, { fields: "id" });
-  props.setProperty("LIBRARY_LAST_SYNC_AT", data.generatedAt);
-  props.deleteProperty("LIBRARY_DIRTY");
+  props.setProperty(prefix + "_LAST_SYNC_AT", data.generatedAt);
+  props.deleteProperty(prefix + "_DIRTY");
   return id;
 }
 
-/** Owner only. Creates a private snapshot file and a one-minute trigger. */
-function installLibraryPublisher_() {
+function writeLibraryFile_(book, props) {
+  return writePublicSnapshot_(buildLibrary_(book), props, "LIBRARY", "CCSA 公開成果與資源.json");
+}
+
+function writeContentFile_(book, props) {
+  return writePublicSnapshot_(buildPublic_(book), props, "CONTENT", "CCSA 公開機構課程公告與招募.json");
+}
+
+function installSnapshotPublisher_(prefix, writer, trigger) {
   return locked_(function () {
     const ctx = libraryOwner_();
     const props = PropertiesService.getScriptProperties();
-    const id = writeLibraryFile_(ctx.book, props);
-    if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === "refreshLibrary_"; }))
-      ScriptApp.newTrigger("refreshLibrary_").timeBased().everyMinutes(1).create();
-    const settings = { LIBRARY_PUBLIC_FILE_ID: id };
+    const id = writer(ctx.book, props);
+    if (!ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === trigger; }))
+      ScriptApp.newTrigger(trigger).timeBased().everyMinutes(1).create();
+    const settings = {};
+    settings[prefix + "_PUBLIC_FILE_ID"] = id;
     console.log(JSON.stringify(settings));
     return settings;
   });
 }
 
-/** Installed owner trigger. Freshness on the public API expires if this job stops succeeding. */
-function refreshLibrary_() {
+/** Owner only. Creates a private snapshot file and a one-minute trigger. */
+function installLibraryPublisher_() {
+  return installSnapshotPublisher_("LIBRARY", writeLibraryFile_, "refreshLibrary_");
+}
+
+/** Owner only. Run after verifying the original content in the unified workbook. */
+function installContentPublisher_() {
+  return installSnapshotPublisher_("CONTENT", writeContentFile_, "refreshContent_");
+}
+
+/** Freshness expires independently for each publisher. */
+function refreshSnapshot_(prefix, writer) {
   return locked_(function () {
-    // A time-driven trigger has no active visitor. It was installed by the owner
-    // and never uses a browser identity or a caller-supplied file ID.
     const props = PropertiesService.getScriptProperties();
-    const id = props.getProperty("LIBRARY_PUBLIC_FILE_ID");
-    if (!id) return;
-    // Sync admin edits on the next tick. Refresh unchanged snapshots periodically
-    // to keep freshness verifiable and stay within trigger/Drive quotas.
-    const lastSync = Date.parse(props.getProperty("LIBRARY_LAST_SYNC_AT"));
-    if (props.getProperty("LIBRARY_DIRTY") !== "true" && Date.now() - lastSync < 240000) return;
+    if (!props.getProperty(prefix + "_PUBLIC_FILE_ID")) return;
+    // Sync edits on the next tick and refresh unchanged snapshots periodically.
+    const lastSync = Date.parse(props.getProperty(prefix + "_LAST_SYNC_AT"));
+    if (props.getProperty(prefix + "_DIRTY") !== "true" && Date.now() - lastSync < 240000) return;
     const book = SpreadsheetApp.openById(props.getProperty("SPREADSHEET_ID"));
     const owner = book.getOwner();
     assert_(owner && owner.getEmail().toLowerCase() === Session.getEffectiveUser().getEmail().toLowerCase(),
       "SETUP_OWNER", "公開同步須由試算表擁有者執行。");
-    writeLibraryFile_(book, props);
+    writer(book, props);
   });
+}
+
+function refreshLibrary_() {
+  return refreshSnapshot_("LIBRARY", writeLibraryFile_);
+}
+
+function refreshContent_() {
+  return refreshSnapshot_("CONTENT", writeContentFile_);
 }
