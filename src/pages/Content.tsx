@@ -3,8 +3,9 @@ import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Search,
-  BookOpen,
+  CalendarHeart,
+  HeartHandshake,
+  Sprout,
   ShieldCheck,
   CalendarDays,
   MapPin,
@@ -17,12 +18,16 @@ import {
   SectionTitle,
   CourseCard,
 } from "../components/UI";
+import PublicIntro from "./PublicIntro";
+import styles from "./PublicPages.module.css";
 export function About() {
   return (
-    <>
-      <PageIntro
-        eyebrow="ABOUT THE PROJECT"
+    <div className={styles.page}>
+      <PublicIntro
+        label="認識計畫"
         title="讓AI的可能，成為陪伴的力量"
+        icon={HeartHandshake}
+        tone="pink"
         description="共創未來｜全國安置機構AI賦能與失家兒數位培力計畫"
       />
       <div className="container section">
@@ -114,7 +119,7 @@ export function About() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 import {
@@ -127,10 +132,12 @@ import { RecruitmentPanel } from "./ManagedContent";
 export function Seed() {
   const { data } = useContent();
   return (
-    <>
-      <PageIntro
-        eyebrow="GROW TOGETHER"
-        title="AI種子機構，一起把可能種下"
+    <div className={styles.page}>
+      <PublicIntro
+        label="種子機構招募與合作"
+        title="一起把可能種下"
+        icon={Sprout}
+        tone="green"
         description="從機構的日常需求出發，透過共學、實踐與交流，陪伴團隊找到適合自己的AI應用方式。"
       />
       <div className="container section">
@@ -234,7 +241,7 @@ export function Seed() {
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }
 export function Courses() {
@@ -246,10 +253,12 @@ export function Courses() {
     (c) => type === "全部課程" || c.type.startsWith(type),
   );
   return (
-    <>
-      <PageIntro
-        eyebrow="LEARN & CONNECT"
+    <div className={styles.page}>
+      <PublicIntro
+        label="培力課程與活動"
         title="把好奇，變成向前的力量"
+        icon={CalendarHeart}
+        tone="orange"
         description="專業工作者與青少年的AI學習旅程，從認識工具到動手實踐。"
       />
       <div className="container section">
@@ -274,13 +283,13 @@ export function Courses() {
         <p className="results-count" aria-live="polite">
           共 {filtered.length} 堂{isDemoMode ? "示範課程" : "課程"}
         </p>
-        <div className="grid two course-list">
+        <div className={`grid two course-list ${styles.courseList}`}>
           {filtered.map((c) => (
             <CourseCard key={c.id} item={c} />
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 export function CourseDetail() {
@@ -296,7 +305,7 @@ export function CourseDetail() {
     );
   if (!c) return <NotFound />;
   return (
-    <>
+    <div className={styles.page}>
       <PageIntro
         eyebrow="COURSE INFORMATION"
         title={c.title}
@@ -311,7 +320,7 @@ export function CourseDetail() {
           <Notice>
             {c.isDemo
               ? "示範活動・目前不開放報名，日期地點非正式公告。"
-              : "正式課程資訊，報名狀態請見右側活動資訊。"}
+              : "正式課程資訊，報名狀態請見本頁活動資訊。"}
           </Notice>
           <h2>一起學些什麼？</h2>
           <p>{c.description}</p>
@@ -364,7 +373,7 @@ export function CourseDetail() {
           <small>本網站不蒐集報名個資。</small>
         </aside>
       </div>
-    </>
+    </div>
   );
 }
 export function NotFound() {

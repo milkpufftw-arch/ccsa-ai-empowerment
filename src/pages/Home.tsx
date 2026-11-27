@@ -1,228 +1,215 @@
+import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Sparkles, Sprout } from "lucide-react";
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Sparkles,
-  ShieldCheck,
-  HeartHandshake,
-  BookOpen,
-  Leaf,
-} from "lucide-react";
 import Illustration from "../components/Illustration";
+import { PublicImage } from "../components/LibraryMedia";
 import OrganizationMark from "../components/OrganizationMark";
-import {
-  SectionTitle,
-  ProjectCards,
-  CourseCard,
-  ShowcaseCard,
-} from "../components/UI";
 import { LibraryStatus, useLibrary } from "../data/library";
 import {
-  useContent,
-  siteCourses,
-  isDemoMode,
   ContentStatus,
+  isDemoMode,
+  siteCourses,
+  useContent,
 } from "../data/repository";
+import styles from "./Home.module.css";
+
+const destinations = [
+  { icon: Sparkles, to: "/showcase", title: "AI 應用成果庫", description: "查看機構的實務案例" },
+  { icon: BookOpen, to: "/resources", title: "AI 學習資源", description: "找操作指引與學習素材" },
+  { icon: CalendarDays, to: "/courses", title: "培力課程與活動", description: "查詢課程與報名資訊" },
+  { icon: Sprout, to: "/seed", title: "種子機構招募與合作", description: "查看招募資訊及合作機構" },
+];
+
 export default function Home() {
   const { data, loading, error } = useContent();
-  const courses = siteCourses(data);
+  const courses = siteCourses(data).slice(0, 2);
   const library = useLibrary();
+  const [leadShowcase, ...moreShowcases] = library.showcases.slice(0, 3);
+  const announcements = (data?.announcements ?? [])
+    .slice()
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+
   return (
-    <>
-      <section className="hero">
-        <div className="container hero-grid">
-          <div className="hero-copy">
-            <span className="pill">
-              <span />
-              以陪伴為起點，與AI一起向前
-            </span>
+    <div className={styles.home}>
+      <section className={styles.masthead}>
+        <div className={`container ${styles.hero}`}>
+          <div className={styles.intro}>
+            <p className={styles.period}>2026.11 – 2027.10</p>
             <h1>
-              讓科技有溫度，
-              <br />
-              讓成長<span className="underline-green">有可能</span>
-              <span className="title-dot">。</span>
+              讓科技有溫度，<br />
+              讓成長<span className={styles.highlight}>有可能</span>。
             </h1>
-            <p className="hero-sub">全國安置機構AI賦能與失家兒數位培力計畫</p>
-            <p className="hero-description">
-              從專業工作者到青少年，讓AI成為日常的好夥伴。
-              <br className="desktop-break" />
-              一起學習、一起實踐，為每一個未來多打開一扇門。
+            <p className={styles.program}>全國安置機構AI賦能與失家兒數位培力計畫</p>
+            <p className={styles.lede}>
+              陪伴安置機構工作者與青少年學習 AI。從日常需求出發，透過培力課程、機構共學與經驗分享，探索安全、適切的應用方式。
             </p>
-            <div className="hero-actions">
-              <Link className="btn primary" to="/about">
-                認識我們的計畫
-                <ArrowRight size={18} />
-              </Link>
-              <Link className="btn secondary" to="/courses">
-                探索培力課程
-                <ArrowUpRight size={18} />
-              </Link>
-            </div>
-            <div className="hero-partners">
-              <span>
-                主辦單位
-                <OrganizationMark />
-                <small>中華育幼機構兒童關懷協會</small>
-              </span>
-              <i />
-              <span>
-                贊助單位<b className="ubs">UBS</b>
-                <small>瑞銀集團</small>
-              </span>
-            </div>
+            <Link className={styles.primary} to="/about">
+              認識計畫 <ArrowRight size={18} aria-hidden="true" />
+            </Link>
           </div>
-          <div className="hero-visual">
-            <div className="visual-label label-top">
-              <Sparkles size={18} />
-              小小的嘗試，大大的可能
-            </div>
+
+          <div className={styles.heroArt}>
             <Illustration />
-            <div className="visual-label label-bottom">
-              <span className="tiny-heart">♥</span> PEOPLE FIRST. TECHNOLOGY FOR
-              GOOD.
-            </div>
-          </div>
-        </div>
-        <div className="hero-caption container">
-          <span>2026.11 — 2027.10</span>
-          <span>
-            一起共學・一起實踐・一起成長
-            <Leaf size={16} />
-          </span>
-        </div>
-      </section>
-      <div className="values-strip">
-        <div className="container">
-          <span>
-            <HeartHandshake />
-            以人為本的科技陪伴
-          </span>
-          <span>
-            <ShieldCheck />
-            安心探索，重視個資保護
-          </span>
-          <span>
-            <BookOpen />
-            讓實務經驗成為共享知識
-          </span>
-        </div>
-      </div>
-      <section className="section container">
-        <SectionTitle
-          eyebrow="OUR INITIATIVES"
-          title="四個起點，一起走向更多可能"
-          description="從機構支持到青年成長，把科技的力量帶進每一天。"
-          link="了解完整計畫"
-          to="/about"
-        />
-        <ProjectCards />
-      </section>
-      <section className="section tinted">
-        <div className="container">
-          <SectionTitle
-            eyebrow="LEARN & CONNECT"
-            title="每一次學習，都是改變的開始"
-            description="為專業工作者與青少年設計，從認識AI到動手實踐。"
-            link="查看所有課程"
-            to="/courses"
-          />
-          <ContentStatus />
-          {!isDemoMode && !courses.length && <p>正式課程資訊將陸續公告。</p>}
-          <div className="grid two">
-            {courses.slice(0, 2).map((c) => (
-              <CourseCard key={c.id} item={c} />
-            ))}
-          </div>
-          {isDemoMode && (
-            <p className="section-note">
-              以下為課程規劃示範，日期與地點非正式公告，目前不開放報名。
+            <p className={styles.artNote}>
+              <Sparkles size={16} aria-hidden="true" /> 小小的嘗試，大大的可能
             </p>
-          )}
+          </div>
+
+          <section className={styles.directory} aria-labelledby="home-directory">
+            <h2 id="home-directory">探索與參與</h2>
+            <ul className={styles.list}>
+              {destinations.map(({ icon: Icon, to, title, description }) => (
+                <li key={to}>
+                  <Link className={styles.entry} to={to}>
+                    <span className={styles.shortcutIcon}>
+                      <Icon size={21} aria-hidden="true" />
+                    </span>
+                    <span className={styles.shortcutText}>
+                      <strong>{title}</strong>
+                      <span className={styles.meta}>{description}</span>
+                    </span>
+                    <ArrowUpRight size={19} aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         </div>
       </section>
-      <section className="section container">
-        <SectionTitle
-          eyebrow="IDEAS INTO IMPACT"
-          title="好方法，值得被更多人看見"
-          description="探索AI如何融入實務，從彼此的嘗試中找到新的靈感。"
-          link="走進AI應用成果庫"
-          to="/showcase"
-        />
-        <LibraryStatus status={library.status} />
-        <div className="grid three">
-          {library.showcases.slice(0, 3).map((c) => (
-            <ShowcaseCard key={c.id} item={c} />
-          ))}
-        </div>
-      </section>
-      <section className="container">
-        <div className="impact">
-          <div>
-            <div className="eyebrow">GROWING A BETTER TOMORROW</div>
-            <h2>
-              不只學會工具，
-              <br />
-              更要讓改變持續發生。
-            </h2>
-            <p>
-              以機構共學、專業培力、青年探索與知識共享，
-              <br />
-              累積屬於兒少安置服務的數位能量。
-            </p>
-            <Link className="text-link" to="/about">
-              看看我們期待的改變
-              <ArrowRight size={18} />
+
+      <div className={`container ${styles.edition}`}>
+        <section className={styles.showcases} aria-labelledby="home-showcases">
+          <div className={styles.sectionHeading}>
+            <h2 id="home-showcases">實務成果</h2>
+            <Link className={styles.textLink} to="/showcase">
+              查看成果庫 <ArrowRight size={16} aria-hidden="true" />
             </Link>
           </div>
-          <div className="impact-grid">
-            {[
-              ["01", "機構共學", "建立可相互支持的實務網絡"],
-              ["02", "專業成長", "讓AI協助工作，保留專業判斷"],
-              ["03", "青年探索", "培養數位素養與自主學習"],
-              ["04", "知識共享", "留下可以持續運用的好方法"],
-            ].map(([n, t, d]) => (
-              <div key={n}>
-                <span>{n}</span>
-                <h3>{t}</h3>
-                <p>{d}</p>
+          <LibraryStatus status={library.status} />
+          {(library.status === "live" || library.status === "legacy") &&
+            !leadShowcase && <p>成果將陸續公開。</p>}
+          {leadShowcase && (
+            <article className={styles.feature}>
+              {leadShowcase.cover && (
+                <Link
+                  className={styles.coverLink}
+                  to={`/showcase/${leadShowcase.id}`}
+                  tabIndex={-1}
+                  aria-hidden="true"
+                >
+                  <PublicImage src={leadShowcase.cover} alt="" className={styles.cover} />
+                </Link>
+              )}
+              <div className={styles.featureBody}>
+                <p className={styles.meta}>
+                  {leadShowcase.category}
+                  {leadShowcase.isDemo && " ／ 示範案例"}
+                  {leadShowcase.featured &&
+                    (leadShowcase.featured === "pinned" ? " ／ 置頂" : " ／ 精選")}
+                </p>
+                <h3>
+                  <Link to={`/showcase/${leadShowcase.id}`}>{leadShowcase.title}</Link>
+                </h3>
+                <p>{leadShowcase.summary}</p>
+                {leadShowcase.organization && (
+                  <p className={styles.meta}>{leadShowcase.organization}</p>
+                )}
               </div>
+            </article>
+          )}
+          {moreShowcases.length > 0 && (
+            <ul className={styles.list}>
+              {moreShowcases.map((item) => (
+                <li key={item.id}>
+                  <Link className={styles.entry} to={`/showcase/${item.id}`}>
+                    <span>
+                      <span className={styles.meta}>
+                        {item.category}
+                        {item.isDemo && " ／ 示範案例"}
+                        {item.featured && (item.featured === "pinned" ? " ／ 置頂" : " ／ 精選")}
+                      </span>
+                      <strong>{item.title}</strong>
+                    </span>
+                    <ArrowUpRight size={17} aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className={styles.news} aria-label="計畫新鮮事">
+          <div className={styles.sectionHeading}>
+            <h2>最新公告</h2>
+          </div>
+          {loading && <p role="status">公告載入中…</p>}
+          {error && <p role="alert">公告暫時無法載入，請稍後重新整理。</p>}
+          {!loading && !error && !announcements.length && <p>最新公告將陸續更新。</p>}
+          <ul className={styles.list}>
+            {announcements.map((item) => (
+              <li key={item.id}>
+                <Link className={styles.entry} to={`/announcements/${item.id}`}>
+                  <span>
+                    <span className={styles.meta}>
+                      <time dateTime={item.date}>{item.date}</time> ／ {item.category}
+                    </span>
+                    <strong>{item.title}</strong>
+                  </span>
+                  <ArrowUpRight size={17} aria-hidden="true" />
+                </Link>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
-      <section className="section container" aria-label="計畫新鮮事">
-        <SectionTitle eyebrow="LATEST UPDATES" title="計畫新鮮事" />
-        {loading && <p>公告載入中…</p>}
-        {error && <p>公告暫時無法載入，請稍後重新整理。</p>}
-        {!loading && !error && !data?.announcements.length && (
-          <p>最新公告將陸續更新。</p>
-        )}
-        {data?.announcements
-          .slice()
-          .sort((a, b) => b.date.localeCompare(a.date))
-          .slice(0, 5)
-          .map((n) => (
-            <Link to={`/announcements/${n.id}`} className="news-row" key={n.id}>
-              <span>{n.category}</span>
-              <time>{n.date}</time>
-              <h3>{n.title}</h3>
-              <ArrowUpRight />
-            </Link>
-          ))}
-      </section>
-      <section className="join-banner">
-        <div className="container">
-          <div>
-            <span className="eyebrow">LET’S CREATE THE FUTURE</span>
-            <h2>改變的路上，我們一起。</h2>
-            <p>讓每一份專業、每一個好奇，都有向前的力量。</p>
-          </div>
-          <Link className="btn primary" to="/seed">
-            認識AI種子機構
-            <ArrowUpRight size={19} />
+          </ul>
+        </section>
+      </div>
+
+      <section className={`container ${styles.courses}`} aria-labelledby="home-courses">
+        <div className={styles.sectionHeading}>
+          <h2 id="home-courses">培力課程與活動</h2>
+          <Link className={styles.textLink} to="/courses">
+            查看所有課程 <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </div>
+        <ContentStatus />
+        {!loading && !error && !isDemoMode && !courses.length && (
+          <p>正式課程資訊將陸續公告。</p>
+        )}
+        {courses.length > 0 && (
+          <ul className={styles.list}>
+            {courses.map((item) => (
+              <li key={item.id}>
+                <Link className={styles.entry} to={`/courses/${item.id}`}>
+                  <span>
+                    <span className={styles.meta}>
+                      <time dateTime={item.date}>{item.date}</time> ／ {item.type}
+                      {item.isDemo && " ／ 示範活動"}
+                    </span>
+                    <strong>{item.title}</strong>
+                    <span className={styles.meta}>{item.location} ／ {item.time}</span>
+                  </span>
+                  <ArrowUpRight size={17} aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+        {isDemoMode && (
+          <p>以上為課程規劃示範，日期與地點非正式公告，目前不開放報名。</p>
+        )}
       </section>
-    </>
+
+      <section className={styles.credits} aria-label="主辦與支持單位">
+        <dl className="container">
+          <div>
+            <dt>主辦單位</dt>
+            <dd><OrganizationMark /> <span>中華育幼機構兒童關懷協會</span></dd>
+          </div>
+          <div>
+            <dt>經費支持單位</dt>
+            <dd><span>UBS 瑞銀集團</span></dd>
+          </div>
+        </dl>
+      </section>
+    </div>
   );
 }
