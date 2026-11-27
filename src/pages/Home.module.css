@@ -32,10 +32,11 @@
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.62fr) minmax(0, 1fr);
-  gap: clamp(32px, 6vw, 84px);
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  column-gap: clamp(28px, 5vw, 72px);
+  row-gap: 22px;
   align-items: center;
-  padding-block: clamp(42px, 6vw, 86px);
+  padding-block: clamp(36px, 4.5vw, 64px) 28px;
 }
 
 .intro {
@@ -78,6 +79,35 @@
 
 .home .primary:hover {
   background: #123e63;
+}
+
+.heroArt {
+  width: min(100%, 500px);
+  justify-self: center;
+}
+
+.heroArt > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.directory {
+  grid-column: 1 / -1;
+}
+
+.directory .list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 24px;
+}
+
+.directory .list > li {
+  border-top: 1px solid var(--home-line);
+}
+
+.directory .entry {
+  height: 100%;
 }
 
 .directory h2 {
@@ -261,12 +291,38 @@
   object-fit: contain;
 }
 
+@media (max-width: 960px) {
+  .directory .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .directory .list > li:nth-child(n + 3) {
+    border-top: 0;
+  }
+}
+
 @media (max-width: 760px) {
   .hero,
   .edition {
     grid-template-columns: minmax(0, 1fr);
     gap: 30px;
     padding-block: 32px;
+  }
+
+  .hero {
+    gap: 20px;
+  }
+
+  .heroArt {
+    width: min(82%, 275px);
+  }
+
+  .directory .list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .directory .list > li:nth-child(n + 2) {
+    border-top: 0;
   }
 
   .intro {

@@ -1,5 +1,6 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
+import Illustration from "../components/Illustration";
 import { PublicImage } from "../components/LibraryMedia";
 import OrganizationMark from "../components/OrganizationMark";
 import { LibraryStatus, useLibrary } from "../data/library";
@@ -41,6 +42,10 @@ export default function Home() {
             <Link className={styles.primary} to="/about">
               認識計畫 <ArrowRight size={18} aria-hidden="true" />
             </Link>
+          </div>
+
+          <div className={styles.heroArt}>
+            <Illustration />
           </div>
 
           <section className={styles.directory} aria-labelledby="home-directory">
