@@ -315,6 +315,7 @@ test("只暴露預定RPC，初始化及輔助函式以_結尾；部署不是匿�
       "doGet",
       "exportPublic",
       "getBootstrap",
+      "getContentSyncStatus",
       "getLibrarySyncStatus",
       "getRecord",
       "listRecords",

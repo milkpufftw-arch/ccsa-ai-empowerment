@@ -395,7 +395,7 @@
         <p>CCSA AI培力・管理後台</p>
         <nav aria-label="管理導覽" id="nav"></nav>
         <p>
-          公開內容請勿填入兒少個資。<br />儲存後仍須匯出及部署才會更新網站。
+          公開內容請勿填入兒少個資。<br />草稿與已下架資料僅供後台查閱。
         </p>
       </aside>
       <main>
@@ -483,7 +483,7 @@
         current = "Dashboard",
         records = [],
         categories = [],
-        libraryLastSyncAt = null,
+        lastSyncAt = null,
         navigationId = 0,
         initialForm = "",
         uploading = 0,
@@ -494,6 +494,12 @@
       const libraryModules = { Showcases: "showcases", LearningResources: "resources" };
       function isLibrary(table) {
         return !!libraryModules[table] || table === "LibraryCategories";
+      }
+      function autoSync(table) {
+        return isLibrary(table) || boot.contentSync?.enabled;
+      }
+      function archivePrompt(table) {
+        return autoSync(table) ? "確定下架？下次同步後將從網站移除。" : "確定下架？重新匯出並部署後才會從網站移除。";
       }
       function categoryChoices(table) {
         return categories.filter((r) => r.module === libraryModules[table] && r.status === "published")
@@ -584,12 +590,13 @@
             const [rows, choices, sync] = await Promise.all([
               rpc("listRecords", id),
               libraryModules[id] ? rpc("listRecords", "LibraryCategories") : [],
-              isLibrary(id) ? rpc("getLibrarySyncStatus") : null,
+              isLibrary(id) ? rpc("getLibrarySyncStatus") : rpc("getContentSyncStatus"),
             ]);
             if (sequence !== navigationId) return;
             records = rows;
             categories = choices;
-            libraryLastSyncAt = sync;
+            if (!isLibrary(id)) boot.contentSync = sync;
+            lastSyncAt = isLibrary(id) ? sync : sync.lastSyncAt;
             renderList();
           }
         } catch (e) {
@@ -617,7 +624,9 @@
                 ? "尚未設定"
                 : boot.targets.courses + " 堂"),
           ],
-          ["網站更新方式", "人工發布", "儲存 → 預覽 → 匯出 → 審核 → 部署"],
+          ["網站更新方式", boot.contentSync?.enabled ? "自動同步" : "部分自動同步",
+            boot.contentSync?.enabled ? "發布或下架後，約一至兩分鐘更新前台。" :
+              "成果與資源自動更新；其餘內容依原有匯出流程發布。"],
         ].forEach(([title, value, detail]) => {
           const c = el("section", undefined, "card");
           c.append(
@@ -720,8 +729,8 @@
               ),
             ),
           );
-        if (isLibrary(tableName)) {
-          const lastSync = libraryLastSyncAt;
+        if (autoSync(tableName)) {
+          const lastSync = lastSyncAt;
           if (!lastSync || Date.now() - Date.parse(lastSync) > 600000) {
             card.append(el("p", "尚未確認自動同步，或同步已中斷。請通知管理員檢查 Apps Script 觸發條件。", "banner"));
           } else {
@@ -1092,7 +1101,7 @@
         if (
           formData().status === "archived" &&
           editing.record?.status !== "archived" &&
-          !confirm(isLibrary(editing.table) ? "確定下架？下次同步後將從網站移除。" : "確定下架？重新匯出並部署後才會從網站移除。")
+          !confirm(archivePrompt(editing.table))
         )
           return;
         saving = true;
@@ -1101,7 +1110,7 @@
         try {
           await rpc("saveRecord", editing.table, formData());
           $("editor").close();
-          notify(isLibrary(editing.table) ? "儲存成功。啟用自動同步後，已發布的變更會更新至網站。" :
+          notify(autoSync(editing.table) ? "儲存成功。已發布的變更將在下次同步後更新至網站。" :
             "儲存成功。完成公開資料匯出及部署後，網站才會更新。");
           await navigate(current);
         } catch (e) {
@@ -1168,7 +1177,7 @@
           !confirm(
             (deleting
               ? "確定刪除？刪除後無法復原。"
-              : isLibrary(table) ? "確定下架？下次同步後將從網站移除。" : "確定下架？下次匯出並部署後才會從網站移除。") +
+              : archivePrompt(table)) +
               "\n" +
               (record.name || record.title || "招募設定"),
           )
@@ -1180,7 +1189,7 @@
           notify(
             deleting
               ? "資料已刪除。"
-              : isLibrary(table) ? "資料已下架，將在下次自動同步後從網站移除。" : "資料已下架，請記得重新匯出並部署網站。",
+              : autoSync(table) ? "資料已下架，將在下次自動同步後從網站移除。" : "資料已下架，請記得重新匯出並部署網站。",
           );
           await navigate(current);
         } catch (e) {
@@ -1197,7 +1206,9 @@
           ),
           el(
             "p",
-            "1. 預覽內容並檢查個資與公開授權。\n2. 下載content.json，存至受限的Google Drive交接資料夾。\n3. 維護人員匯入專案，檢查差異並在Netlify預覽驗收。\n4. 審核通過後部署。",
+            boot.contentSync?.enabled
+              ? "先預覽並確認內容可公開，再於各管理頁發布或下架。網站會自動同步，公開 JSON 可供查核與備份。"
+              : "先預覽並確認內容可公開，再下載 content.json 交由網站維護人員匯入及部署。",
           ),
         );
         const controls = el("div", undefined, "toolbar");
@@ -1233,7 +1244,7 @@
                   a.click();
                   a.remove();
                   setTimeout(() => URL.revokeObjectURL(url), 1000);
-                  notify("公開JSON已下載，尚未更新網站。");
+                  notify(boot.contentSync?.enabled ? "公開 JSON 備份已下載。" : "公開JSON已下載，尚未更新網站。");
                 } catch (e) {
                   notify(e.message, true);
                 }

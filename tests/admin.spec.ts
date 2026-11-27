@@ -378,3 +378,38 @@ test("成果與資源從後台同步前台，保留原內容並隔離草稿、�
   await expect(publicPage.getByRole("alert")).toContainText("暫時無法載入");
   await expect(publicPage.locator(".resource-card")).toHaveCount(0);
 });
+
+test("已開啟的前台可在新版後台發布與下架公告後自動更新", async ({ page, context }) => {
+  const h = await loadAdmin(page, true, true, true);
+  h.properties.set("LIBRARY_SNAPSHOT_READER", "reader@staging-test.iam.gserviceaccount.com");
+  const { CONTENT_PUBLIC_FILE_ID } = h.context.installContentPublisher_();
+  const file = h.state.files.get(CONTENT_PUBLIC_FILE_ID);
+  const frontend = await context.newPage();
+  await frontend.clock.install();
+  await frontend.route("**/api/content", (route) =>
+    route.fulfill({ contentType: "application/json", body: file.blob.json }),
+  );
+  await frontend.goto("http://127.0.0.1:4173/");
+  await expect(frontend.getByText("最新公告將陸續更新。")).toBeVisible();
+
+  await page.getByRole("navigation").getByRole("button", { name: "公告", exact: true }).click();
+  await page.getByRole("button", { name: "＋ 新增公告", exact: true }).click();
+  await page.getByLabel("標題 ＊", { exact: true }).fill("整合後台同步測試");
+  await page.getByLabel("摘要 ＊", { exact: true }).fill("測試公開摘要");
+  await page.getByLabel("內容（純文字） ＊", { exact: true }).fill("資料由快照自動更新");
+  await page.getByLabel("公告日期 ＊", { exact: true }).fill("2026-11-26");
+  await page.getByRole("combobox", { name: "發布狀態 ＊", exact: true }).selectOption("published");
+  await page.getByRole("button", { name: "儲存", exact: true }).click();
+  await expect(page.locator("#editor")).not.toBeVisible();
+  h.context.refreshContent_();
+  await frontend.clock.fastForward(60_100);
+  await expect(frontend.getByRole("link", { name: /整合後台同步測試/ })).toBeVisible();
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("row").filter({ hasText: "整合後台同步測試" })
+    .getByRole("button", { name: "下架", exact: true }).click();
+  await expect(page.getByRole("cell", { name: "已下架", exact: true })).toBeVisible();
+  h.context.refreshContent_();
+  await frontend.clock.fastForward(60_100);
+  await expect(frontend.getByText("最新公告將陸續更新。")).toBeVisible();
+});
