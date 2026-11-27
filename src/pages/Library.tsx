@@ -4,6 +4,7 @@ import { PageIntro, Notice, ShowcaseCard } from "../components/UI";
 import { FormattedText, LibraryLink, PublicImage } from "../components/LibraryMedia";
 import { LibraryStatus, useLibrary, type SiteResource } from "../data/library";
 import { NotFound } from "./Content";
+import styles from "./PublicPages.module.css";
 
 function useLibraryFilters() {
   const [params, setParams] = useSearchParams();
@@ -59,8 +60,8 @@ export function Showcase() {
     (!filters.category || [r.categoryId, r.category].includes(filters.category)) &&
     (!filters.featured || !!r.featured) &&
     matches([r.title, r.summary, r.organization, r.category, r.context, r.features ?? "", ...r.tools], filters.query));
-  return <>
-    <PageIntro eyebrow="IDEAS INTO IMPACT" title="AI應用成果庫"
+  return <div className={styles.page}>
+    <PageIntro eyebrow="IDEAS INTO IMPACT" title="AI 應用成果庫"
       description="每一個實務嘗試，都可能成為另一個團隊的靈感。一起探索、交流，讓好方法持續發生。" />
     <div className="container section">
       <LibraryStatus status={status} />
@@ -78,12 +79,12 @@ export function Showcase() {
               onChange={(event) => filters.update("featured", event.target.checked ? "1" : "")} /> 只看精選與置頂
           </label>}
         </div>
-        {filtered.length ? <div className="grid three">
+        {filtered.length ? <div className={`grid three ${styles.showcaseList}`}>
           {filtered.map((item) => <ShowcaseCard item={item} key={item.id} />)}
         </div> : <EmptyLibrary message="還沒找到符合的成果" filtered={!!(filters.query || filters.category || filters.featured)} clear={filters.clear} />}
       </>}
     </div>
-  </>;
+  </div>;
 }
 
 export function ShowcaseDetail() {
@@ -98,7 +99,7 @@ export function ShowcaseDetail() {
     ["原有問題及需求", item.problem],
     ["功能介紹", item.features],
   ];
-  return <>
+  return <div className={styles.page}>
     <PageIntro eyebrow="PRACTICE & POSSIBILITY" title={item.title} description={item.summary} />
     <div className="container section detail-layout">
       <article>
@@ -139,7 +140,7 @@ export function ShowcaseDetail() {
         <Link className="text-link" to="/resources">看看安全使用指引<ArrowRight size={16} /></Link>
       </aside>
     </div>
-  </>;
+  </div>;
 }
 
 function StepList({ steps }: { steps: string[] }) {
@@ -184,8 +185,8 @@ export function Resources() {
     (!filters.category || [r.categoryId, r.category].includes(filters.category)) &&
     (!filters.type || r.type === filters.type) &&
     matches([r.title, r.summary, r.body, r.category, r.type, r.source, r.audience], filters.query));
-  return <>
-    <PageIntro eyebrow="YOUR LEARNING TOOLKIT" title="每一步探索，都有資源陪你"
+  return <div className={styles.page}>
+    <PageIntro eyebrow="YOUR LEARNING TOOLKIT" title="AI 學習資源"
       description="從入門教學、提示詞到實務指引，找到適合自己的AI學習起點。" />
     <div className="container section">
       <LibraryStatus status={status} />
@@ -202,7 +203,7 @@ export function Resources() {
           {types.map((type) => <option key={type}>{type}</option>)}
         </select></label>
         <p className="results-count" aria-live="polite">共 {filtered.length} 項資源</p>
-        {filtered.length ? <div className="grid two">
+        {filtered.length ? <div className={`grid two ${styles.resourceList}`}>
           {filtered.map((item) => <ResourceCard item={item} key={item.id} />)}
         </div> : <EmptyLibrary message="還沒找到符合的資源" filtered={!!(filters.query || filters.category || filters.type)} clear={filters.clear} />}
       </>}
@@ -212,5 +213,5 @@ export function Resources() {
         <p>不輸入可辨識個人或服務兒少的資料，確認使用授權，並由人員查證與審核產出。AI的回答不等於事實，也不取代專業判斷。</p>
       </div>
     </div>
-  </>;
+  </div>;
 }
