@@ -3,8 +3,9 @@ import { useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
-  Search,
-  BookOpen,
+  CalendarHeart,
+  HeartHandshake,
+  Sprout,
   ShieldCheck,
   CalendarDays,
   MapPin,
@@ -17,13 +18,16 @@ import {
   SectionTitle,
   CourseCard,
 } from "../components/UI";
+import PublicIntro from "./PublicIntro";
 import styles from "./PublicPages.module.css";
 export function About() {
   return (
     <div className={styles.page}>
-      <PageIntro
-        eyebrow="ABOUT THE PROJECT"
-        title="認識計畫"
+      <PublicIntro
+        label="認識計畫"
+        title="讓AI的可能，成為陪伴的力量"
+        icon={HeartHandshake}
+        tone="pink"
         description="共創未來｜全國安置機構AI賦能與失家兒數位培力計畫"
       />
       <div className="container section">
@@ -129,9 +133,11 @@ export function Seed() {
   const { data } = useContent();
   return (
     <div className={styles.page}>
-      <PageIntro
-        eyebrow="GROW TOGETHER"
-        title="種子機構招募與合作"
+      <PublicIntro
+        label="種子機構招募與合作"
+        title="一起把可能種下"
+        icon={Sprout}
+        tone="green"
         description="從機構的日常需求出發，透過共學、實踐與交流，陪伴團隊找到適合自己的AI應用方式。"
       />
       <div className="container section">
@@ -248,9 +254,11 @@ export function Courses() {
   );
   return (
     <div className={styles.page}>
-      <PageIntro
-        eyebrow="LEARN & CONNECT"
-        title="培力課程與活動"
+      <PublicIntro
+        label="培力課程與活動"
+        title="把好奇，變成向前的力量"
+        icon={CalendarHeart}
+        tone="orange"
         description="專業工作者與青少年的AI學習旅程，從認識工具到動手實踐。"
       />
       <div className="container section">

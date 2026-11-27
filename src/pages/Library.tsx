@@ -1,9 +1,10 @@
-import { ArrowLeft, ArrowRight, Search, BookOpen, ShieldCheck, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, Search, BookOpen, ShieldCheck, ChevronDown, Sparkles } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { PageIntro, Notice, ShowcaseCard } from "../components/UI";
 import { FormattedText, LibraryLink, PublicImage } from "../components/LibraryMedia";
 import { LibraryStatus, useLibrary, type SiteResource } from "../data/library";
 import { NotFound } from "./Content";
+import PublicIntro from "./PublicIntro";
 import styles from "./PublicPages.module.css";
 
 function useLibraryFilters() {
@@ -61,7 +62,7 @@ export function Showcase() {
     (!filters.featured || !!r.featured) &&
     matches([r.title, r.summary, r.organization, r.category, r.context, r.features ?? "", ...r.tools], filters.query));
   return <div className={styles.page}>
-    <PageIntro eyebrow="IDEAS INTO IMPACT" title="AI 應用成果庫"
+    <PublicIntro label="AI 應用成果庫" title="好方法，值得被更多人看見" icon={Sparkles} tone="blue"
       description="每一個實務嘗試，都可能成為另一個團隊的靈感。一起探索、交流，讓好方法持續發生。" />
     <div className="container section">
       <LibraryStatus status={status} />
@@ -186,7 +187,7 @@ export function Resources() {
     (!filters.type || r.type === filters.type) &&
     matches([r.title, r.summary, r.body, r.category, r.type, r.source, r.audience], filters.query));
   return <div className={styles.page}>
-    <PageIntro eyebrow="YOUR LEARNING TOOLKIT" title="AI 學習資源"
+    <PublicIntro label="AI 學習資源" title="每一步探索，都有資源陪你" icon={BookOpen} tone="green"
       description="從入門教學、提示詞到實務指引，找到適合自己的AI學習起點。" />
     <div className="container section">
       <LibraryStatus status={status} />

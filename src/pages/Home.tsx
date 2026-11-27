@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BookOpen, CalendarDays, Sparkles, Sprout } from "lucide-react";
 import { Link } from "react-router-dom";
 import Illustration from "../components/Illustration";
 import { PublicImage } from "../components/LibraryMedia";
@@ -13,10 +13,10 @@ import {
 import styles from "./Home.module.css";
 
 const destinations = [
-  { to: "/showcase", title: "AI 應用成果庫", description: "查看機構的實務案例" },
-  { to: "/resources", title: "AI 學習資源", description: "找操作指引與學習素材" },
-  { to: "/courses", title: "培力課程與活動", description: "查詢課程與報名資訊" },
-  { to: "/seed", title: "種子機構招募與合作", description: "查看招募資訊及合作機構" },
+  { icon: Sparkles, to: "/showcase", title: "AI 應用成果庫", description: "查看機構的實務案例" },
+  { icon: BookOpen, to: "/resources", title: "AI 學習資源", description: "找操作指引與學習素材" },
+  { icon: CalendarDays, to: "/courses", title: "培力課程與活動", description: "查詢課程與報名資訊" },
+  { icon: Sprout, to: "/seed", title: "種子機構招募與合作", description: "查看招募資訊及合作機構" },
 ];
 
 export default function Home() {
@@ -35,7 +35,11 @@ export default function Home() {
         <div className={`container ${styles.hero}`}>
           <div className={styles.intro}>
             <p className={styles.period}>2026.11 – 2027.10</p>
-            <h1>全國安置機構AI賦能<wbr />與失家兒數位培力計畫</h1>
+            <h1>
+              讓科技有溫度，<br />
+              讓成長<span className={styles.highlight}>有可能</span>。
+            </h1>
+            <p className={styles.program}>全國安置機構AI賦能與失家兒數位培力計畫</p>
             <p className={styles.lede}>
               陪伴安置機構工作者與青少年學習 AI。從日常需求出發，透過培力課程、機構共學與經驗分享，探索安全、適切的應用方式。
             </p>
@@ -46,15 +50,21 @@ export default function Home() {
 
           <div className={styles.heroArt}>
             <Illustration />
+            <p className={styles.artNote}>
+              <Sparkles size={16} aria-hidden="true" /> 小小的嘗試，大大的可能
+            </p>
           </div>
 
           <section className={styles.directory} aria-labelledby="home-directory">
             <h2 id="home-directory">探索與參與</h2>
             <ul className={styles.list}>
-              {destinations.map(({ to, title, description }) => (
+              {destinations.map(({ icon: Icon, to, title, description }) => (
                 <li key={to}>
                   <Link className={styles.entry} to={to}>
-                    <span>
+                    <span className={styles.shortcutIcon}>
+                      <Icon size={21} aria-hidden="true" />
+                    </span>
+                    <span className={styles.shortcutText}>
                       <strong>{title}</strong>
                       <span className={styles.meta}>{description}</span>
                     </span>
